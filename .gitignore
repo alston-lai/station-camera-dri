@@ -12,6 +12,15 @@ __pycache__/
 # 日志
 debug.log
 
+# 会话签名密钥（自动生成，勿提交）
+.secret_key
+
+# SQLite 数据库与备份（data/ 下的业务 JSON 仍跟踪；app.db 不入库）
+data/app.db
+data/app.db-wal
+data/app.db-shm
+data/backups/
+
 # 图片/临时导入文件（如需纳入请调整）
 *.png
 *.jpg

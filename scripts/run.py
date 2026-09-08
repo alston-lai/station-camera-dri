@@ -19,4 +19,5 @@ if __name__ == '__main__':
     print("访问地址: http://localhost:5001")
     print("按 Ctrl+C 停止服务")
     print("=" * 50)
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    # debug=False 避免调试器暴露在生产；threaded=True 支持并发处理请求
+    app.run(host='0.0.0.0', port=5001, debug=False, threaded=True)

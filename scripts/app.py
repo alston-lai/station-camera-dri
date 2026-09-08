@@ -5,7 +5,11 @@ Station & Camera DRI Management Web Server
 import csv
 import io
 import json
-from datetime import datetime
+import os
+import secrets
+import time
+import threading
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for
 
@@ -22,8 +26,6 @@ from data_manager import (
     export_staff_to_excel, import_staff_from_excel
 )
 
-import os
-
 # 获取项目根目录和模板路径
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
@@ -31,12 +33,60 @@ TEMPLATE_DIR = os.path.join(PROJECT_DIR, 'templates')
 STATIC_DIR = os.path.join(PROJECT_DIR, 'static')
 DATA_DIR = os.path.join(PROJECT_DIR, 'data')
 
-app = Flask(__name__, 
+# ===== 安全配置辅助 =====
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    return val.strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _load_or_create_secret_key() -> str:
+    """读取环境变量 SECRET_KEY；否则从项目根目录的 .secret_key 读取；
+    都没有则生成一个随机值并落盘保存（避免重启后会话全部失效）。"""
+    env_key = os.environ.get('SECRET_KEY')
+    if env_key:
+        return env_key
+    key_file = os.path.join(PROJECT_DIR, '.secret_key')
+    if os.path.exists(key_file):
+        try:
+            with open(key_file, 'r', encoding='utf-8') as f:
+                k = f.read().strip()
+            if k:
+                return k
+        except OSError:
+            pass
+    k = secrets.token_hex(32)
+    try:
+        with open(key_file, 'w', encoding='utf-8') as f:
+            f.write(k)
+        os.chmod(key_file, 0o600)
+    except OSError:
+        pass
+    return k
+
+
+# 是否处于调试/开发模式（生产请保持关闭）
+APP_DEBUG = _env_bool('FLASK_DEBUG', False)
+
+app = Flask(__name__,
             template_folder=TEMPLATE_DIR,
             static_folder=STATIC_DIR,
             static_url_path='/static')
-app.config['SECRET_KEY'] = 'station-camera-dri-secret-key-2024'
-app.config['TEMPLATES_AUTO_RELOAD'] = True
+
+# —— 会话与安全相关配置 ——
+app.config['SECRET_KEY'] = _load_or_create_secret_key()
+app.config['DEBUG'] = APP_DEBUG
+# 生产关闭模板自动重载可减少每次渲染的扫描开销
+app.config['TEMPLATES_AUTO_RELOAD'] = APP_DEBUG
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# 若走 HTTPS，可设环境变量 SESSION_COOKIE_SECURE=true
+app.config['SESSION_COOKIE_SECURE'] = _env_bool('SESSION_COOKIE_SECURE', False)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
+# 限制上传体积，防止超大文件拖垮服务（Excel/CSV 导入）
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 
 DEPARTMENTS = ['五部', '六部', '七部', '八部']
 
@@ -51,6 +101,72 @@ def get_client_ip():
         return request.headers.get('X-Real-IP')
     # 最后用 remote_addr
     return request.remote_addr or 'Unknown'
+
+
+# ===== API 登录守卫（未登录返回 401 JSON，而不是跳转页面） =====
+def api_login_required(f):
+    """需要登录才能访问的 API 守卫，返回 JSON 而不是 302。"""
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        if 'user' not in session:
+            return jsonify({'success': False, 'message': '请先登录'}), 401
+        return f(*args, **kwargs)
+    return wrapped
+
+
+# ===== 基础安全响应头 =====
+@app.after_request
+def set_security_headers(response):
+    # 防 XSS/点击劫持/类型嗅探
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.setdefault('Referrer-Policy', 'same-origin')
+    if request.path.startswith('/static/'):
+        # 静态资源可被浏览器缓存较长时间
+        response.headers.setdefault('Cache-Control', 'public, max-age=3600')
+    else:
+        response.headers.setdefault('Cache-Control', 'no-store')
+    return response
+
+
+# 上传体积超限统一返回 JSON 提示
+@app.errorhandler(413)
+def too_large(e):
+    return jsonify({'success': False, 'message': '上传文件过大，最大允许 25MB'}), 413
+
+
+# ===== 登录暴力破解限流 =====
+LOGIN_WINDOW_SECONDS = 300      # 5 分钟窗口
+LOGIN_MAX_ATTEMPTS = 8          # 窗口内最多尝试次数
+_login_failures = {}            # key -> {'count': n, 'first': ts}
+_login_lock = threading.RLock()
+
+
+def _too_many_login_attempts(key: str) -> bool:
+    with _login_lock:
+        now = time.time()
+        rec = _login_failures.get(key)
+        if rec and (now - rec['first']) >= LOGIN_WINDOW_SECONDS:
+            _login_failures.pop(key, None)
+            rec = None
+        if rec and rec['count'] >= LOGIN_MAX_ATTEMPTS:
+            return True
+        return False
+
+
+def _record_login_failure(key: str):
+    with _login_lock:
+        now = time.time()
+        rec = _login_failures.get(key)
+        if not rec or (now - rec['first']) >= LOGIN_WINDOW_SECONDS:
+            _login_failures[key] = {'count': 1, 'first': now}
+        else:
+            rec['count'] += 1
+
+
+def _clear_login_failures(key: str):
+    with _login_lock:
+        _login_failures.pop(key, None)
 
 
 def check_user_in_whitelist(employee_id):
@@ -126,26 +242,35 @@ def login_page():
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
-    """登录验证 - 只允许 users.json 中的成员访问"""
-    data = request.json
-    employee_id = data.get('employee_id', '').strip()
-    name = data.get('name', '').strip()
-    
+    """登录验证 - 只允许 users.json 中的成员访问（含暴力破解限流）"""
+    ip = get_client_ip()
+    data = request.json or {}
+    employee_id = str(data.get('employee_id', '')).strip()
+    name = str(data.get('name', '')).strip()
+
     if not employee_id or not name:
         return jsonify({'success': False, 'message': '请填写工号和姓名'})
-    
+
+    # 限流 key：同一 IP + 同一工号 分别计数
+    if _too_many_login_attempts(f'ip:{ip}') or _too_many_login_attempts(f'id:{employee_id}'):
+        return jsonify({'success': False, 'message': '尝试次数过多，请 5 分钟后再试'}), 429
+
     # 检查是否在白名单中
-    in_whitelist, user_data = check_user_in_whitelist(employee_id)
-    
+    in_whitelist, _user_data = check_user_in_whitelist(employee_id)
     if not in_whitelist:
+        _record_login_failure(f'ip:{ip}')
+        _record_login_failure(f'id:{employee_id}')
         return jsonify({
-            'success': False, 
+            'success': False,
             'message': '无权限访问此页面，请联系管理员申请权限'
         })
-    
+
     # 获取用户权限配置
     user = get_user_permissions(employee_id, name)
+    session.permanent = True
     session['user'] = user
+    _clear_login_failures(f'ip:{ip}')
+    _clear_login_failures(f'id:{employee_id}')
     return jsonify({'success': True, 'user': user})
 
 
@@ -184,6 +309,7 @@ def department():
 
 
 @app.route('/api/department/summary')
+@api_login_required
 def api_department_summary():
     """获取部门人员汇总（无月份参数）"""
     summary = get_department_summary()
@@ -191,6 +317,7 @@ def api_department_summary():
 
 
 @app.route('/api/department/detail')
+@api_login_required
 def api_department_detail():
     """获取部门人员详细
     Query params:
@@ -204,6 +331,7 @@ def api_department_detail():
 
 
 @app.route('/api/department/all')
+@api_login_required
 def api_department_all():
     """获取所有部门人员汇总"""
     data = get_department_all()
@@ -211,6 +339,7 @@ def api_department_all():
 
 
 @app.route('/api/department/members')
+@api_login_required
 def api_department_members():
     """获取指定部门的所有成员
     Query params:
@@ -344,6 +473,7 @@ def api_department_add_left():
 
 
 @app.route('/api/department/export')
+@api_login_required
 def api_department_export():
     """导出人员信息为 Excel"""
     dept = request.args.get('department', '全体')
@@ -409,6 +539,7 @@ def action_items():
 
 
 @app.route('/api/action-items')
+@api_login_required
 def api_action_items():
     """获取所有 Action Items"""
     items = get_all_action_items()
@@ -481,6 +612,7 @@ def info_list():
 
 
 @app.route('/api/info-list')
+@api_login_required
 def api_info_list():
     """获取所有信息表"""
     tables = get_all_info_list()
@@ -600,6 +732,7 @@ def collector_sheet(sheet_id):
 
 
 @app.route('/api/collector', methods=['GET'])
+@api_login_required
 def api_collector_list():
     """获取所有收集表格"""
     sheets = get_collector_sheets()
@@ -730,6 +863,7 @@ def api_collector_delete_sheet(sheet_id):
 
 
 @app.route('/api/collector/<int:sheet_id>/export')
+@api_login_required
 def api_collector_export(sheet_id):
     """导出 CSV"""
     sheet = get_collector_sheet(sheet_id)
@@ -874,6 +1008,7 @@ def history():
 
 
 @app.route('/api/history')
+@api_login_required
 def api_history():
     """获取历史记录"""
     limit = request.args.get('limit', 100, type=int)
@@ -892,4 +1027,4 @@ if __name__ == '__main__':
     print("=" * 50)
     print("访问地址: http://localhost:5001")
     print("=" * 50)
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    app.run(host='0.0.0.0', port=5001, debug=APP_DEBUG, threaded=True)
