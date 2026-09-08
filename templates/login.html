@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}登录 - Station & Camera DRI Management{% endblock %}
+
+{% block content %}
+<div style="min-height: calc(100vh - 180px); display: flex; align-items: center; justify-content: center; padding: 2rem; background: linear-gradient(180deg, #FBFBFD 0%, #F5F5F7 100%);">
+    <div style="background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1); padding: 3rem; width: 100%; max-width: 400px;">
+        <!-- Logo 区域 -->
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <div style="width: 72px; height: 72px; margin: 0 auto 1.5rem; background: linear-gradient(135deg, #0071E3 0%, #5856D6 100%); border-radius: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0, 113, 227, 0.3);">
+                <svg viewBox="0 0 24 24" fill="white" style="width: 36px; height: 36px;">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+            </div>
+            <h1 style="font-size: 1.5rem; font-weight: 600; color: #1d1d1f; margin-bottom: 0.5rem;">Station & Camera DRI</h1>
+            <p style="font-size: 0.875rem; color: #86868b;">请输入工号和姓名登录系统</p>
+        </div>
+        
+        <!-- 登录表单 -->
+        <form id="loginForm">
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #1d1d1f; margin-bottom: 0.5rem;">工号</label>
+                <input type="text" name="employee_id" required 
+                       style="width: 100%; padding: 0.875rem 1rem; font-size: 1rem; border: 1px solid #d1d5db; border-radius: 10px; color: #1d1d1f; background: white; box-sizing: border-box; transition: all 0.2s;"
+                       placeholder="请输入工号" 
+                       autocomplete="username">
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #1d1d1f; margin-bottom: 0.5rem;">姓名</label>
+                <input type="text" name="name" required 
+                       style="width: 100%; padding: 0.875rem 1rem; font-size: 1rem; border: 1px solid #d1d5db; border-radius: 10px; color: #1d1d1f; background: white; box-sizing: border-box; transition: all 0.2s;"
+                       placeholder="请输入姓名" 
+                       autocomplete="name">
+            </div>
+            
+            <button type="submit" style="width: 100%; padding: 1rem; background: #0071E3; color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                登录
+            </button>
+        </form>
+        
+        <!-- 错误提示 -->
+        <div id="errorMsg" style="display: none; margin-top: 1.5rem; padding: 1rem; background: rgba(255, 59, 48, 0.1); border-radius: 10px; color: #FF3B30; font-size: 0.875rem; text-align: center;"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('loginForm').onsubmit = function(e) {
+    e.preventDefault();
+    var form = e.target;
+    var employeeId = form.employee_id.value.trim();
+    var name = form.name.value.trim();
+    
+    fetch('/api/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({employee_id: employeeId, name: name})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            sessionStorage.setItem('user', JSON.stringify(data.user));
+            window.location.href = '/';
+        } else {
+            var errorMsg = document.getElementById('errorMsg');
+            errorMsg.textContent = data.message || '登录失败，请检查工号和姓名';
+            errorMsg.style.display = 'block';
+        }
+    })
+    .catch(function() {
+        var errorMsg = document.getElementById('errorMsg');
+        errorMsg.textContent = '登录请求失败，请稍后重试';
+        errorMsg.style.display = 'block';
+    });
+};
+</script>
+{% endblock %}

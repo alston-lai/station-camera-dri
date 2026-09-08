@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+{% block title %}{{ sheet.name }} - 数据收集{% endblock %}
+
+{% block content %}
+<style>
+    /* ===== 页面头部 ===== */
+    .page-header {
+        display: flex; justify-content: space-between; align-items: flex-start;
+        gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+    }
+    .head-left { min-width: 0; }
+    .back-link { color: #0071E3; font-size: 14px; text-decoration: none; display: inline-block; margin-bottom: 4px; }
+    .back-link:hover { text-decoration: underline; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1d1d1f; margin: 0; }
+    .page-sub { font-size: 13px; color: #86868b; margin-top: 4px; }
+    .header-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500;
+        cursor: pointer; border: none; text-decoration: none; line-height: 1.2;
+    }
+    .btn svg { width: 15px; height: 15px; }
+    .btn-primary   { background: #0071E3; color: #fff; }
+    .btn-primary:hover   { background: #0077ED; }
+    .btn-success   { background: #34C759; color: #fff; }
+    .btn-success:hover   { background: #2DBE4A; }
+    .btn-secondary { background: #5856D6; color: #fff; }
+    .btn-secondary:hover { background: #4B49BE; }
+    .btn-danger    { background: #FF3B30; color: #fff; }
+    .btn-danger:hover    { background: #E0342A; }
+    .btn-cancel    { background: #E5E5EA; color: #1d1d1f; }
+    .btn-cancel:hover    { background: #D1D1D6; }
+
+    /* 批量删除提示条 */
+    #batchBar {
+        display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+        background: #fff4e5; border: 1px solid #ffc96b; color: #8a5200;
+        padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;
+    }
+    #batchBar .count { font-weight: 700; color: #b45309; }
+
+    /* ===== 表格排版 ===== */
+    .table-wrap {
+        background: #fff; border: 1px solid #d2d2d7; border-radius: 12px;
+        overflow-x: auto; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .data-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .data-table th, .data-table td {
+        padding: 10px 12px; text-align: left; vertical-align: middle;
+        border-bottom: 1px solid #ededf0; border-right: 1px solid #f0f0f2;
+        overflow-wrap: anywhere; word-break: break-word;
+    }
+    .data-table tr > th:last-child, .data-table tr > td:last-child { border-right: none; }
+    .data-table thead th {
+        position: sticky; top: 0; background: #f5f5f7; z-index: 2;
+        font-size: 13px; font-weight: 600; color: #6e6e73;
+        text-align: center; vertical-align: middle;   /* 表头上下左右居中 */
+        border-bottom: 1px solid #d2d2d7;
+    }
+    .data-table tbody tr:hover td { background: #fafafc; }
+
+    /* 数据内容：上下始终居中；左右——短内容居中，长内容由 JS 加 .is-long 改为左对齐 */
+    .data-table .data-cell {
+        text-align: center; vertical-align: middle;
+    }
+    .data-table .data-cell.is-long { text-align: left; }
+
+    /* 序号 / 操作 / 勾选：窄、居中、不折行 */
+    .data-table .seq-cell, .data-table .op-cell, .data-table .check-cell {
+        text-align: center; vertical-align: middle;
+        white-space: nowrap; overflow-wrap: normal; word-break: normal;
+    }
+    .data-table .check-cell { padding: 0 4px; }
+    /* 操作列表头与“编辑”按钮明确水平居中 */
+    .data-table thead th.op-cell,
+    .data-table tbody td.op-cell {
+        text-align: center !important;
+    }
+    .data-table tbody td.op-cell .action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2px 6px;
+        white-space: nowrap;
+    }
+    .col-seq      { width: 56px; }
+    .col-op       { width: 72px; }
+    .col-checkbox { width: 48px; }
+    .col-data     { width: auto; }   /* 数据列宽度由 JS 按内容自动分配 */
+
+    .data-table .empty-cell {
+        padding: 40px 16px !important; text-align: center; color: #86868b; font-size: 14px;
+    }
+    .action-btn {
+        color: #0071E3; background: none; border: none; cursor: pointer;
+        font-size: 14px; font-weight: 500; padding: 2px 4px;
+    }
+    .action-btn:hover { text-decoration: underline; }
+
+    /* 弹窗 */
+    .modal-overlay {
+        position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+        display: none; align-items: center; justify-content: center; z-index: 50;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-content {
+        background: #fff; border-radius: 12px; padding: 24px;
+        width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto;
+    }
+    .modal-title { font-size: 18px; font-weight: 600; margin: 0 0 16px; color: #1d1d1f; }
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 13px; color: #86868b; margin-bottom: 6px; }
+    .form-input {
+        width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7;
+        border-radius: 8px; font-size: 14px; box-sizing: border-box; color: #1d1d1f;
+    }
+    .form-input:focus { outline: none; border-color: #0071E3; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; }
+</style>
+
+<div class="page-header">
+    <div class="head-left">
+        <a href="/collector" class="back-link">← 返回列表</a>
+        <h1 class="page-title">{{ sheet.name }}</h1>
+        <div class="page-sub">共 {{ sheet.rows|length }} 条记录 · {{ sheet.headers|length }} 列</div>
+    </div>
+    <div class="header-actions">
+        <button type="button" onclick="document.getElementById('importFile').click()" class="btn btn-secondary">导入 CSV</button>
+        <a href="/api/collector/{{ sheet.id }}/export" class="btn btn-success">导出 CSV</a>
+        <button type="button" onclick="showAddRowModal()" class="btn btn-primary">+ 添加行</button>
+        <button type="button" onclick="enterBatchDelete()" id="batchDeleteBtn" class="btn btn-danger">批量删除</button>
+        <button type="button" onclick="confirmBatchDelete()" id="confirmDeleteBtn" class="btn btn-danger" style="display:none;">确认删除</button>
+        <button type="button" onclick="cancelBatchDelete()" id="cancelDeleteBtn" class="btn btn-cancel" style="display:none;">取消</button>
+    </div>
+</div>
+
+<!-- 批量删除提示条 -->
+<div id="batchBar">
+    <span>已进入批量删除模式：表头勾选框可全选，每行勾选框可单选。</span>
+    <span>已选 <span class="count" id="selCount">0</span> 行</span>
+</div>
+
+<!-- 隐藏的文件输入 -->
+<input type="file" id="importFile" accept=".csv" style="display:none;" onchange="handleImport(this)">
+
+<div class="table-wrap">
+    <table class="data-table" id="dataTable">
+        <colgroup id="colgroup">
+            <col class="col-seq">
+            {% for header in sheet.headers %}<col class="col-data">{% endfor %}
+            <col class="col-op">
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="seq-cell">序号</th>
+                {% for header in sheet.headers %}<th>{{ header }}</th>{% endfor %}
+                <th class="op-cell">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in sheet.rows %}
+            <tr>
+                <td class="seq-cell">{{ loop.index }}</td>
+                {% for header in sheet.headers %}
+                <td class="data-cell">{{ row.get(header, row.get(header.lower(), '')) }}</td>
+                {% endfor %}
+                <td class="op-cell"><button type="button" class="action-btn" onclick="editRow({{ loop.index0 }})">编辑</button></td>
+            </tr>
+            {% else %}
+            <tr class="empty-row"><td class="empty-cell" colspan="{{ sheet.headers|length + 2 }}">暂无数据</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- 添加 / 编辑数据弹窗 -->
+<div id="rowModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 class="modal-title" id="modalTitle">添加数据</h3>
+        <form id="rowForm">
+            <input type="hidden" name="rowIndex" value="-1">
+            {% for header in sheet.headers %}
+            <div class="form-group">
+                <label class="form-label">{{ header }}</label>
+                <input type="text" name="{{ header.lower() }}" class="form-input">
+            </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button type="button" onclick="closeRowModal()" class="btn btn-cancel">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentRowIndex = -1;
+
+/* ---------- 添加 / 编辑 行 ---------- */
+function showAddRowModal() {
+    currentRowIndex = -1;
+    document.getElementById('modalTitle').textContent = '添加数据';
+    document.getElementById('rowForm').reset();
+    document.getElementById('rowForm').rowIndex.value = '-1';
+    document.getElementById('rowModal').classList.add('show');
+}
+
+// 兼容不同大小写存储的取值（部分旧数据 key 可能是大写）
+function cellValue(row, key) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) return row[key];
+    var lower = key.toLowerCase();
+    for (var k in row) {
+        if (Object.prototype.hasOwnProperty.call(row, k) && k.toLowerCase() === lower) return row[k];
+    }
+    return '';
+}
+
+function editRow(index) {
+    currentRowIndex = index;
+    const sheetData = {{ sheet | tojson | safe }};
+    const row = sheetData.rows[index];
+    document.getElementById('modalTitle').textContent = '编辑数据（第 ' + (index + 1) + ' 行）';
+    const form = document.getElementById('rowForm');
+    form.rowIndex.value = index;
+    {% for header in sheet.headers %}
+    form['{{ header.lower() }}'].value = cellValue(row, '{{ header.lower() }}');
+    {% endfor %}
+    document.getElementById('rowModal').classList.add('show');
+}
+
+function closeRowModal() { document.getElementById('rowModal').classList.remove('show'); }
+
+document.getElementById('rowForm').onsubmit = function (e) {
+    e.preventDefault();
+    const form = e.target;
+    const sheetId = {{ sheet.id }};
+    const rowData = {};
+    {% for header in sheet.headers %}
+    rowData['{{ header.lower() }}'] = form['{{ header.lower() }}'].value;
+    {% endfor %}
+    const url = currentRowIndex >= 0
+        ? `/api/collector/${sheetId}/row/${currentRowIndex}`
+        : `/api/collector/${sheetId}/row`;
+    const method = currentRowIndex >= 0 ? 'PUT' : 'POST';
+    fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rowData) })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) { closeRowModal(); location.reload(); }
+            else alert(data.message || '操作失败');
+        })
+        .catch(() => alert('请求失败'));
+};
+
+/* ---------- 勾选框列（仅批量删除模式存在） ---------- */
+function isBatchMode() { return !!document.getElementById('colgroup').querySelector('.col-checkbox'); }
+
+function addCheckboxColumn() {
+    if (isBatchMode()) return;
+    var colgroup = document.getElementById('colgroup');
+    var col = document.createElement('col');
+    col.className = 'col-checkbox';
+    colgroup.insertBefore(col, colgroup.firstChild);
+
+    var theadTr = document.querySelector('#dataTable thead tr');
+    var th = document.createElement('th');
+    th.className = 'check-cell';
+    th.innerHTML = '<input type="checkbox" id="selectAll" title="全选" onchange="toggleSelectAll()">';
+    theadTr.insertBefore(th, theadTr.firstChild);
+
+    // 每个数据行最前面插入勾选框（序号保持不动）
+    var rows = document.querySelectorAll('#dataTable tbody tr:not(.empty-row)');
+    rows.forEach(function (tr, i) {
+        var td = document.createElement('td');
+        td.className = 'check-cell';
+        td.innerHTML = '<input type="checkbox" class="row-checkbox" data-index="' + i + '" onchange="updateSelectAllState()">';
+        tr.insertBefore(td, tr.firstChild);
+    });
+}
+
+function removeCheckboxColumn() {
+    var cg = document.getElementById('colgroup');
+    var col = cg.querySelector('.col-checkbox'); if (col) col.remove();
+    var th = document.querySelector('#dataTable thead .check-cell'); if (th) th.remove();
+    document.querySelectorAll('#dataTable tbody tr .check-cell').forEach(function (td) { td.remove(); });
+}
+
+/* ---------- 列宽自动排版（勾选框有无都兼容） ---------- */
+function layoutColumns() {
+    var table = document.getElementById('dataTable');
+    if (!table) return;
+    var wrap = document.querySelector('.table-wrap');
+    var colgroup = document.getElementById('colgroup');
+    var cols = colgroup.children;
+    var isBatch = isBatchMode();
+
+    var checkboxW = isBatch ? 48 : 0;
+    var seqW = 56;
+    var opW = 72;
+    var totalW = wrap ? wrap.clientWidth : table.offsetWidth;
+    if (!totalW) totalW = 900;
+    var avail = Math.max(60, totalW - seqW - opW - checkboxW - 4);
+
+    // 按 class 定位每个数据列，取出它的列序号（= 单元格序号），统计文本长度
+    var dataMeta = [];
+    var headCells = table.tHead ? table.tHead.rows[0].cells : [];
+    var bodyRows = table.tBodies.length ? table.tBodies[0].rows : [];
+    for (var c = 0; c < cols.length; c++) {
+        if (!cols[c].classList.contains('col-data')) continue;
+        var cellIdx = c; // col 元素顺序与单元格顺序一一对应
+        var hname = (headCells[cellIdx] ? headCells[cellIdx].innerText : '').trim();
+        var maxLen = hname.length;
+        for (var r = 0; r < bodyRows.length; r++) {
+            var tr = bodyRows[r];
+            if (tr.classList.contains('empty-row')) continue;
+            var cell = tr.cells[cellIdx];
+            if (!cell) continue;
+            var L = cell.innerText.replace(/\s+/g, ' ').trim().length;
+            if (L > maxLen) maxLen = L;
+        }
+        // 开方压缩：长文本列获得更多宽度，但不会无限拉宽
+        dataMeta.push({ name: hname, w: Math.pow(Math.max(maxLen, 1), 0.72) });
+    }
+
+    var nData = dataMeta.length || 1;
+    var sumW = dataMeta.reduce(function (a, x) { return a + x.w; }, 0);
+    var minCol = 90;
+    var widthFor = [];
+    var overflowMode = false;
+
+    if (nData * minCol >= avail) {
+        // 列太多：每列保底宽度，表格加宽以启用外层横向滚动
+        overflowMode = true;
+        for (var j = 0; j < nData; j++) widthFor.push(minCol);
+    } else {
+        var used = 0;
+        for (var j2 = 0; j2 < nData; j2++) {
+            var ww = Math.max(minCol, Math.floor(avail * (dataMeta[j2].w / sumW)));
+            if (j2 === nData - 1) ww = Math.max(minCol, avail - used); // 最后一列吸收取整误差
+            widthFor.push(ww);
+            used += ww;
+        }
+        if (used > avail) {
+            var scale = avail / used;
+            used = 0;
+            for (var j3 = 0; j3 < nData; j3++) {
+                widthFor[j3] = Math.max(minCol, Math.floor(widthFor[j3] * scale));
+                used += widthFor[j3];
+            }
+        }
+    }
+
+    // 依次把宽度写回 colgroup
+    var di = 0;
+    for (var c2 = 0; c2 < cols.length; c2++) {
+        var cls = cols[c2].classList;
+        if (cls.contains('col-checkbox')) cols[c2].style.width = (isBatch ? 48 : 0) + 'px';
+        else if (cls.contains('col-seq')) cols[c2].style.width = seqW + 'px';
+        else if (cls.contains('col-op')) cols[c2].style.width = opW + 'px';
+        else if (cls.contains('col-data')) { cols[c2].style.width = widthFor[di] + 'px'; di++; }
+    }
+
+    // 空态单元格 colspan 跟随实际列数
+    var emp = table.querySelector('.empty-row .empty-cell');
+    if (emp) emp.colSpan = cols.length;
+
+    // 列太多时让表格按总列宽加宽，否则占满容器
+    if (overflowMode) {
+        var sumPx = 0;
+        for (var p = 0; p < cols.length; p++) sumPx += parseInt(cols[p].style.width) || 0;
+        table.style.width = sumPx + 'px';
+    } else {
+        table.style.width = '100%';
+    }
+
+    // 依据内容长短决定内容列的对齐方式（短→居中，长→左对齐）
+    alignDataCells();
+}
+
+/* ---------- 内容单元格对齐 ---------- */
+// 动态判断每个内容单元格：文本多到必须换行（在不换行时会超出格子）→ 左对齐；
+// 否则（单行能放下）→ 居中。上下始终居中。该规则对任何表头/内容都通用。
+function alignDataCells() {
+    var table = document.getElementById('dataTable');
+    if (!table) return;
+    var dataCells = table.querySelectorAll('tbody tr:not(.empty-row) td.data-cell');
+    dataCells.forEach(function (td) {
+        if (!(td.innerText || '').trim()) {
+            td.classList.remove('is-long');  // 空内容保持居中
+            return;
+        }
+        var prevWS = td.style.whiteSpace;
+        td.style.whiteSpace = 'nowrap';     // 临时禁止换行，实测是否超出格子
+        var overflows = td.scrollWidth > td.clientWidth + 2;
+        td.style.whiteSpace = prevWS;       // 恢复
+        td.classList.toggle('is-long', overflows);
+    });
+}
+
+/* ---------- 批量删除 ---------- */
+function enterBatchDelete() {
+    addCheckboxColumn();
+    document.getElementById('batchDeleteBtn').style.display = 'none';
+    document.getElementById('confirmDeleteBtn').style.display = 'inline-flex';
+    document.getElementById('cancelDeleteBtn').style.display = 'inline-flex';
+    document.getElementById('batchBar').style.display = 'flex';
+    updateSelectedCount();
+    layoutColumns();
+}
+
+function cancelBatchDelete() {
+    removeCheckboxColumn();
+    document.getElementById('batchDeleteBtn').style.display = 'inline-flex';
+    document.getElementById('confirmDeleteBtn').style.display = 'none';
+    document.getElementById('cancelDeleteBtn').style.display = 'none';
+    document.getElementById('batchBar').style.display = 'none';
+    layoutColumns();
+}
+
+function toggleSelectAll() {
+    var checked = document.getElementById('selectAll').checked;
+    document.querySelectorAll('.row-checkbox').forEach(function (cb) { cb.checked = checked; });
+    updateSelectedCount();
+}
+
+function updateSelectAllState() {
+    var cbs = document.querySelectorAll('.row-checkbox');
+    var checked = document.querySelectorAll('.row-checkbox:checked').length;
+    var sel = document.getElementById('selectAll');
+    sel.checked = checked > 0 && checked === cbs.length;
+    sel.indeterminate = checked > 0 && checked < cbs.length;
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    var n = document.querySelectorAll('.row-checkbox:checked').length;
+    var el = document.getElementById('selCount');
+    if (el) el.textContent = n;
+}
+
+function confirmBatchDelete() {
+    var selected = document.querySelectorAll('.row-checkbox:checked');
+    if (selected.length === 0) { alert('请先勾选要删除的数据行'); return; }
+    if (!confirm('确定要删除选中的 ' + selected.length + ' 行数据吗？')) return;
+    const indices = Array.from(selected).map(function (cb) { return parseInt(cb.dataset.index); });
+    fetch('/api/collector/{{ sheet.id }}/batch-delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ indices: indices })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) location.reload();
+        else alert(data.message || '删除失败');
+    })
+    .catch(() => alert('请求失败'));
+}
+
+/* ---------- CSV 导入 ---------- */
+function handleImport(fileInput) {
+    var file = fileInput.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) { alert('只支持 CSV 格式文件'); fileInput.value = ''; return; }
+    var formData = new FormData();
+    formData.append('file', file);
+    fetch('/api/collector/{{ sheet.id }}/import', { method: 'POST', body: formData })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) { alert(data.message || '导入成功'); location.reload(); }
+            else alert(data.message || '导入失败');
+        })
+        .catch(function () { alert('导入失败'); })
+        .then(function () { fileInput.value = ''; });
+}
+
+// 页面加载完成、窗口尺寸变化时重新排版列宽
+window.addEventListener('load', function () {
+    layoutColumns();
+    setTimeout(layoutColumns, 120);
+});
+window.addEventListener('resize', layoutColumns);
+</script>
+{% endblock %}

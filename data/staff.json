@@ -1,0 +1,957 @@
+{
+  "五部": [
+    {
+      "employee_id": "75081220",
+      "name": "陈克祥",
+      "level": "10",
+      "phone": "13584900549",
+      "email": "MARVIN.CHEN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "12224366",
+      "name": "张星",
+      "level": "10",
+      "phone": "15037620826",
+      "email": "ANDY.ZHANG1@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "12272842",
+      "name": "戴志强",
+      "level": "8",
+      "phone": "18762958982",
+      "email": "ZQ.DAI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "12278436",
+      "name": "吉凯",
+      "level": "9",
+      "phone": "15190418703",
+      "email": "KAI.JI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "12278439",
+      "name": "李嘉文",
+      "level": "9",
+      "phone": "17305556993",
+      "email": "LEE.LI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "12278914",
+      "name": "燕巧",
+      "level": "8",
+      "phone": "17601472390",
+      "email": "QIAO.YAN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "12238021",
+      "name": "郑永祥",
+      "level": "9",
+      "phone": "15357566959",
+      "email": "FRANK.ZHENG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "677365",
+      "name": "王扣成",
+      "level": "10",
+      "phone": "15962414209",
+      "email": "JACK.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "12254998",
+      "name": "胡坤明",
+      "level": "9",
+      "phone": "13511619097",
+      "email": "KUNMING.HU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75028656",
+      "name": "卓忠思",
+      "level": "8",
+      "phone": "18662678360",
+      "email": "ZHONGSI.ZHUO@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75028659",
+      "name": "陈旭强",
+      "level": "8",
+      "phone": "17714231443",
+      "email": "XUQIANG.CHEN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75028732",
+      "name": "杨松杉",
+      "level": "9",
+      "phone": "13894900900",
+      "email": "SCOTT.YANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75031636",
+      "name": "李怡梅",
+      "level": "7",
+      "phone": "15083993727",
+      "email": "LUCY.LI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75159032",
+      "name": "潘生辉",
+      "level": "8",
+      "phone": "18211967960",
+      "email": "SHENGHUI.PAN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75224741",
+      "name": "李明闪",
+      "level": "9",
+      "phone": "15050268173",
+      "email": "MINGSHAN.L@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75307931",
+      "name": "翁旋",
+      "level": "7",
+      "phone": "15050401215",
+      "email": "XUAN.WENG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75375097",
+      "name": "杨成宽",
+      "level": "8",
+      "phone": "13913282848",
+      "email": "NIGEL.YANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76019677",
+      "name": "汪峰",
+      "level": "7",
+      "phone": "18761658933",
+      "email": "FENG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76023342",
+      "name": "黄强",
+      "level": "8",
+      "phone": "13145820639",
+      "email": "PAUL.HUANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76077811",
+      "name": "刘永",
+      "level": "7",
+      "phone": "17693648857",
+      "email": "JUSTIN.L.LIU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76087795",
+      "name": "谷亚伟",
+      "level": "8",
+      "phone": "19006442301",
+      "email": "YAWEI.GU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600128",
+      "name": "王小寒",
+      "level": "7",
+      "phone": "18317646206",
+      "email": "FOX.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75302485",
+      "name": "张剑",
+      "level": "8",
+      "phone": "15895947900",
+      "email": "SHAWN.ZHANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "H717699",
+      "name": "薛效忠",
+      "level": "7",
+      "phone": "18651119109",
+      "email": "XIAOZHONG.XUE@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76338981",
+      "name": "胡月",
+      "level": "7",
+      "phone": "19818976220",
+      "email": "EMILY.HU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76005804",
+      "name": "郭旺",
+      "level": "7",
+      "phone": "18151928520",
+      "email": "WANG.GUO@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76085581",
+      "name": "梁园",
+      "level": "7",
+      "phone": "18085686823",
+      "email": "JAMES.L.LIANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76080107",
+      "name": "梁宇辰",
+      "level": "6",
+      "phone": "15715557515",
+      "email": "YUCHEN.LIANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76247419",
+      "name": "江文",
+      "level": "5",
+      "phone": "19880023237",
+      "email": "WEN.JIANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75435970",
+      "name": "侯京京",
+      "level": "6",
+      "phone": "13914966057",
+      "email": "ALICE.HOU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600536",
+      "name": "董梦婷",
+      "level": "5",
+      "phone": "18932300296",
+      "email": "MENGTING.DONG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600578",
+      "name": "蒋佳怡",
+      "level": "5",
+      "phone": "17789208500",
+      "email": "JIAYI.JIANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600487",
+      "name": "梁钰羚",
+      "level": "4",
+      "phone": "18936250992",
+      "email": "YULING.LIANG1@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75102709",
+      "name": "李民",
+      "level": "6",
+      "phone": "18020268841",
+      "email": "MICHAEL.LI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600219",
+      "name": "孙久健",
+      "level": "5",
+      "phone": "13256725210",
+      "email": "JAYSON.SUN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600272",
+      "name": "陈梦洋",
+      "level": "6",
+      "phone": "15137627902",
+      "email": "MENGYANG.CHEN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600774",
+      "name": "殷鸿飞",
+      "level": "4",
+      "phone": "15150484298",
+      "email": "HONGFEI.YIN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600918",
+      "name": "王吴驹",
+      "level": "5",
+      "phone": "17625534894",
+      "email": "WUJU.WANG@LUXSAN-ICT.COM"
+    }
+  ],
+  "六部": [
+    {
+      "employee_id": "W11000186",
+      "name": "吴锋",
+      "level": "10",
+      "phone": "15821341575",
+      "email": "TEDDY.WU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W18000273",
+      "name": "蔡英敏",
+      "level": "8",
+      "phone": "18552003976",
+      "email": "YINGMIN.CAI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W20002026",
+      "name": "刘鹏飞",
+      "level": "7",
+      "phone": "13187007721",
+      "email": "BOB2.LIU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W19000295",
+      "name": "安滢滢",
+      "level": "8",
+      "phone": "13661484140",
+      "email": "SELENA.AN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W17051181",
+      "name": "王杰杰",
+      "level": "6",
+      "phone": "15290267146",
+      "email": "DBL.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W19000124",
+      "name": "谷晨阳",
+      "level": "7",
+      "phone": "13183187416",
+      "email": "LUFFE.GU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W21000022",
+      "name": "赵朋飞",
+      "level": "6",
+      "phone": "18221233051",
+      "email": "PENGFEI.ZHAO2@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W21001900",
+      "name": "苏又辉",
+      "level": "6",
+      "phone": "18272987419",
+      "email": "YOUHUI.SU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W21000803",
+      "name": "王彪",
+      "level": "6",
+      "phone": "13623831132",
+      "email": "JACK.WANG22@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W23900237",
+      "name": "汪俊",
+      "level": "6",
+      "phone": "18679028985",
+      "email": "JUN1.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W19061301",
+      "name": "高红卫",
+      "level": "6",
+      "phone": "18115155125",
+      "email": "HONGWEI.GAO@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W23900127",
+      "name": "方文静",
+      "level": "6",
+      "phone": "18041609605",
+      "email": "FREDA.FANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W21001795",
+      "name": "王飞虎",
+      "level": "6",
+      "phone": "15201783903",
+      "email": "FEIHU.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600061",
+      "name": "胡莉",
+      "level": "8",
+      "phone": "18862333460",
+      "email": "LI.H.HU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600511",
+      "name": "宋帅",
+      "level": "7",
+      "phone": "13006668513",
+      "email": "ELAM.SONG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75601020",
+      "name": "窦彩佳",
+      "level": "5",
+      "phone": "13290700609",
+      "email": "CAIJIA.DOU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600505",
+      "name": "王声华",
+      "level": "5",
+      "phone": "13868592861",
+      "email": "SHENGHUA.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600518",
+      "name": "闫露",
+      "level": "5",
+      "phone": "13474195104",
+      "email": "ALINA.YAN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600569",
+      "name": "勾越",
+      "level": "5",
+      "phone": "13256759745",
+      "email": "BRYAN.GOU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W23900210",
+      "name": "关佳毅",
+      "level": "5",
+      "phone": "13621978634",
+      "email": "JIAYI.GUAN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W21309276",
+      "name": "龙雪珊",
+      "level": "4",
+      "phone": "19542794991",
+      "email": "SARA.LONG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W23900193",
+      "name": "梅鑫洋",
+      "level": "5",
+      "phone": "13564046508",
+      "email": "ANGELINA.MEI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W22900686",
+      "name": "惠留康",
+      "level": "5",
+      "phone": "17386546491",
+      "email": "KENNY.HUI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W18140585",
+      "name": "黎绍凯",
+      "level": "6",
+      "phone": "18656909809",
+      "email": "KEVIN23.LI@LUXSAN-ICT.COM"
+    }
+  ],
+  "七部": [
+    {
+      "employee_id": "W17005707",
+      "name": "朱贝贝",
+      "level": "8",
+      "phone": "15000176620",
+      "email": "IDA.ZHU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W19000804",
+      "name": "孙增军",
+      "level": "7",
+      "phone": "13703425445",
+      "email": "ZENGJUN.SUN2@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W18002015",
+      "name": "宁小领",
+      "level": "6",
+      "phone": "15026578730",
+      "email": "LAMBERT.NING@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W19000409",
+      "name": "韩静静",
+      "level": "6",
+      "phone": "15102185629",
+      "email": "JING2.HAN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W19000522",
+      "name": "徐智轩",
+      "level": "6",
+      "phone": "13844645637",
+      "email": "MARICO.XU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W19000609",
+      "name": "金城",
+      "level": "7",
+      "phone": "17362565747",
+      "email": "LEWIS.JIN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W19000666",
+      "name": "高彧朗",
+      "level": "7",
+      "phone": "18814514824",
+      "email": "ADNACHIEL.GAO@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W19000765",
+      "name": "周宇",
+      "level": "6",
+      "phone": "13166915137",
+      "email": "YU1.ZHOU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W20001766",
+      "name": "董宁",
+      "level": "7",
+      "phone": "18844889282",
+      "email": "CURRY.D@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W21000307",
+      "name": "孟飞龙",
+      "level": "7",
+      "phone": "15037907032",
+      "email": "FEILONG.MENG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W21001570",
+      "name": "张进",
+      "level": "7",
+      "phone": "15225799287",
+      "email": "JZ.ZHANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W21002013",
+      "name": "张淑超",
+      "level": "6",
+      "phone": "18844713776",
+      "email": "SHUCHAO.ZHANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W23900107",
+      "name": "司君祎",
+      "level": "6",
+      "phone": "17853523996",
+      "email": "JUNYI.SI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75159626",
+      "name": "狄雪连",
+      "level": "8",
+      "phone": "18894268405",
+      "email": "XUELIAN.DI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75405360",
+      "name": "钟伟东",
+      "level": "7",
+      "phone": "17665494942",
+      "email": "WEIDONG.ZHONG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "12207570",
+      "name": "葛继锋",
+      "level": "7",
+      "phone": "15950021426",
+      "email": "JIFENG.GE@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76002949",
+      "name": "林尚坤",
+      "level": "10",
+      "phone": "13077929773",
+      "email": "SHANGKUN.LIN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76004179",
+      "name": "王凯",
+      "level": "8",
+      "phone": "18721254391",
+      "email": "KAI.WK@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76247174",
+      "name": "周佳莹",
+      "level": "7",
+      "phone": "15797672371",
+      "email": "ARIA.ZHOU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76263933",
+      "name": "郑毫",
+      "level": "7",
+      "phone": "18725801572",
+      "email": "ROCKLYN.ZHENG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75162105",
+      "name": "张云友",
+      "level": "7",
+      "phone": "15770770925",
+      "email": "YUNYOU.ZHANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76234160",
+      "name": "王胜",
+      "level": "7",
+      "phone": "15872119001",
+      "email": "MORTY.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600072",
+      "name": "鲍宽",
+      "level": "8",
+      "phone": "18297797701",
+      "email": "KUANG.BAO@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600099",
+      "name": "欧廷清",
+      "level": "7",
+      "phone": "18372514190",
+      "email": "RICK.OU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600163",
+      "name": "汪安齐",
+      "level": "7",
+      "phone": "15055699625",
+      "email": "ANQI.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W23900125",
+      "name": "王鹏伟",
+      "level": "5",
+      "phone": "18874970820",
+      "email": "PENGWEI1.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W23900148",
+      "name": "高丁飞",
+      "level": "5",
+      "phone": "15565562062",
+      "email": "DINGFEI.GAO@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W23900217",
+      "name": "史林锋",
+      "level": "4",
+      "phone": "17278815624",
+      "email": "LINFENG.SHI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "W21450338",
+      "name": "曹云",
+      "level": "4",
+      "phone": "15000199349",
+      "email": "YUN.CAO@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75125508",
+      "name": "孙敬博",
+      "level": "3",
+      "phone": "15839961607",
+      "email": "JINGBO.SUN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76247261",
+      "name": "马嘉鹏",
+      "level": "6",
+      "phone": "18112323733",
+      "email": "JIAPENG.MA@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76232981",
+      "name": "郭毅",
+      "level": "5",
+      "phone": "13385432394",
+      "email": "RYAN.GUO@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600930",
+      "name": "彭家琪",
+      "level": "6",
+      "phone": "18013470998",
+      "email": "JESSIE.PENG@LUXSAN-ICT.COM"
+    }
+  ],
+  "八部": [
+    {
+      "employee_id": "76001430",
+      "name": "史玉珍",
+      "level": "10",
+      "phone": "18217556014",
+      "email": "YU.ZHEN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "12270519",
+      "name": "王华东",
+      "level": "9",
+      "phone": "15599052331",
+      "email": "DK.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "12278438",
+      "name": "徐丹丹",
+      "level": "9",
+      "phone": "13388969103",
+      "email": "MONA.XU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "12284332",
+      "name": "万盼",
+      "level": "8",
+      "phone": "15716115327",
+      "email": "RAIN.WAN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75025443",
+      "name": "李丹阳",
+      "level": "8",
+      "phone": "15037643900",
+      "email": "DANYANG.LI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75056035",
+      "name": "徐佳锋",
+      "level": "8",
+      "phone": "15250130713",
+      "email": "BENSON.XU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75150248",
+      "name": "孟晴",
+      "level": "7",
+      "phone": "13343686149",
+      "email": "SANDY.MENG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75156196",
+      "name": "吴志桃",
+      "level": "9",
+      "phone": "18706231660",
+      "email": "BRAIN.WU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75160524",
+      "name": "张伟伟",
+      "level": "8",
+      "phone": "15366629235",
+      "email": "JACK.ZHANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75162179",
+      "name": "栗建兵",
+      "level": "7",
+      "phone": "18506199750",
+      "email": "DARREN.LI@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75282014",
+      "name": "王晖",
+      "level": "8",
+      "phone": "13669235759",
+      "email": "CARLISLE.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75320408",
+      "name": "张明",
+      "level": "8",
+      "phone": "18335320181",
+      "email": "SUNLIGHT.ZHANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75326953",
+      "name": "余欣弨",
+      "level": "7",
+      "phone": "15129824882",
+      "email": "XINCHAO.YU2@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600377",
+      "name": "郭芸",
+      "level": "7",
+      "phone": "18087276802",
+      "email": "CRYSTAL.GUO1@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75350208",
+      "name": "田嘉丽",
+      "level": "8",
+      "phone": "17868243750",
+      "email": "JIALI.TIAN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75378333",
+      "name": "尹正威",
+      "level": "7",
+      "phone": "17621980639",
+      "email": "TONY.YIN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75394288",
+      "name": "王铜铜",
+      "level": "7",
+      "phone": "15735156004",
+      "email": "MARVEN.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75424293",
+      "name": "冯振华",
+      "level": "8",
+      "phone": "18361036239",
+      "email": "ZHENHUA.FENG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75426549",
+      "name": "李炜",
+      "level": "7",
+      "phone": "18629901272",
+      "email": "LESLIE.LEE@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76009204",
+      "name": "范彦龙",
+      "level": "8",
+      "phone": "15801948434",
+      "email": "YANLONG.FAN@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76244066",
+      "name": "徐健",
+      "level": "7",
+      "phone": "13264713920",
+      "email": "JIAN.XU2@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76233185",
+      "name": "孟海丰",
+      "level": "7",
+      "phone": "17637028860",
+      "email": "HAIFENG.MENG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600067",
+      "name": "郑阳",
+      "level": "7",
+      "phone": "17372955762",
+      "email": "YANG.Z.ZHENG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75600077",
+      "name": "徐振宇",
+      "level": "7",
+      "phone": "18796977197",
+      "email": "ZHENYU.XU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75601036",
+      "name": "李凯",
+      "level": "8",
+      "phone": "18317864996",
+      "email": "KAI.LI2@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75422719",
+      "name": "常美美",
+      "level": "7",
+      "phone": "18393535134",
+      "email": "MEIMEI.CHANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "75332698",
+      "name": "王莎莎",
+      "level": "6",
+      "phone": "15539187665",
+      "email": "SHASHA.WANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76247256",
+      "name": "杨逸清",
+      "level": "6",
+      "phone": "18327787691",
+      "email": "YIQING.YANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76247600",
+      "name": "张子康",
+      "level": "5",
+      "phone": "17851153757",
+      "email": "ZIKANG.ZHANG@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76080106",
+      "name": "刘洋洋",
+      "level": "5",
+      "phone": "19552999037",
+      "email": "YANGYANG.LIU@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76081792",
+      "name": "姚素素",
+      "level": "6",
+      "phone": "15549226275",
+      "email": "SUSU.YAO@LUXSAN-ICT.COM"
+    },
+    {
+      "employee_id": "76082072",
+      "name": "张长聪",
+      "level": "6",
+      "phone": "15856231197",
+      "email": "CHANGCONG.ZHANG@LUXSAN-ICT.COM"
+    }
+  ],
+  "left": [
+    {
+      "name": "刘钰莹",
+      "department": "五部",
+      "reason": "个人职业发展考量",
+      "date": "2026-06-01",
+      "operator": "Alston"
+    },
+    {
+      "name": "杨玉蓉",
+      "department": "五部",
+      "reason": "个人职业发展考量",
+      "date": "2026-08-17",
+      "operator": "Alston"
+    },
+    {
+      "name": "阳文",
+      "department": "五部",
+      "reason": "个人职业发展考量",
+      "date": "2026-09-04",
+      "operator": "Alston"
+    },
+    {
+      "name": "薛丽丽",
+      "department": "五部",
+      "reason": "家庭因素，回家发展",
+      "date": "2026-09-10",
+      "operator": "Alston"
+    },
+    {
+      "name": "弓荣鑫",
+      "department": "八部",
+      "reason": "家庭因素，回家发展",
+      "date": "2026-07-18",
+      "operator": "Alston"
+    },
+    {
+      "name": "杨阳",
+      "department": "七部",
+      "reason": "家庭因素，回家发展",
+      "date": "2026-07-18",
+      "operator": "Alston"
+    },
+    {
+      "name": "胡瑞敏",
+      "department": "六部",
+      "reason": "家庭因素",
+      "date": "2026-07-24",
+      "operator": "Alston"
+    },
+    {
+      "name": "孙粽",
+      "department": "八部",
+      "reason": "家庭因素，回家发展",
+      "date": "2026-08-18",
+      "operator": "Alston"
+    }
+  ]
+}

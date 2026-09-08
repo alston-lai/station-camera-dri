@@ -1,0 +1,717 @@
+{% extends "base.html" %}
+
+{% block title %}信息列表 - Station & Camera DRI Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">信息列表</h1>
+    <p class="page-subtitle">多维度信息表管理</p>
+</div>
+
+<div class="page-toolbar">
+    <div class="search-box">
+        <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input type="text" id="searchInput" placeholder="搜索信息表..." class="search-input" oninput="filterTables(this.value)">
+    </div>
+    <button onclick="showAddTableModal()" class="btn btn-primary">
+        <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+        </svg>
+        添加信息表
+    </button>
+</div>
+
+<!-- 信息表列表 -->
+<div id="tablesContainer" class="tables-container">
+    <!-- 动态加载 -->
+</div>
+
+<!-- 添加信息表 Modal -->
+<div id="addTableModal" class="modal-overlay hidden" onclick="closeAddTableModal()">
+    <div class="modal-card modal-medium" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">添加信息表</h3>
+            <button onclick="closeAddTableModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="addTableForm" class="modal-form">
+            <div class="form-group">
+                <label class="form-label">信息表名称 <span class="required">*</span></label>
+                <input type="text" name="name" required class="form-input" placeholder="例如：Build Schedule">
+            </div>
+            <div class="form-group">
+                <label class="form-label">表头（用逗号分隔）</label>
+                <input type="text" name="headers" class="form-input" placeholder="例如：Key,Value（留空则默认两列）">
+                <span class="form-hint">不填则默认为 Key 和 Value 两列</span>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeAddTableModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">创建</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 添加行 Modal -->
+<div id="addRowModal" class="modal-overlay hidden" onclick="closeAddRowModal()">
+    <div class="modal-card modal-large" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">添加数据</h3>
+            <button onclick="closeAddRowModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="addRowForm" class="modal-form">
+            <input type="hidden" name="table_id">
+            <div id="rowFormFields" class="form-grid-2">
+                <!-- 动态生成 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeAddRowModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">添加</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 编辑行 Modal -->
+<div id="editRowModal" class="modal-overlay hidden" onclick="closeEditRowModal()">
+    <div class="modal-card modal-large" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">编辑数据</h3>
+            <button onclick="closeEditRowModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="editRowForm" class="modal-form">
+            <input type="hidden" name="table_id">
+            <input type="hidden" name="row_index">
+            <div id="editRowFormFields" class="form-grid-2">
+                <!-- 动态生成 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeEditRowModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 删除确认 Modal -->
+<div id="deleteModal" class="modal-overlay hidden" onclick="closeDeleteModal()">
+    <div class="modal-card modal-small" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">确认删除</h3>
+            <button onclick="closeDeleteModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>确定要删除此信息表吗？此操作不可撤销。</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" onclick="closeDeleteModal()" class="modal-btn modal-btn-cancel">取消</button>
+            <button type="button" onclick="confirmDelete()" class="modal-btn modal-btn-danger">删除</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.page-header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+}
+.page-title {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--apple-dark);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+}
+.page-subtitle {
+    font-size: 1.125rem;
+    color: var(--apple-gray);
+    font-weight: 400;
+}
+.page-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.search-box {
+    position: relative;
+    width: 280px;
+}
+.search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.125rem;
+    height: 1.125rem;
+    color: var(--apple-gray);
+}
+.search-input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.75rem;
+    border: 1px solid var(--apple-border);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    color: var(--apple-dark);
+    background: white;
+    transition: all var(--transition-fast);
+}
+.search-input:focus {
+    outline: none;
+    border-color: var(--apple-blue);
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1);
+}
+
+/* 信息表容器 */
+.tables-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* 单个信息表卡片 - 全宽布局 */
+.info-table-card {
+    background: white;
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    transition: all 0.2s;
+    width: 100%;
+}
+.info-table-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+.info-table-card.hidden {
+    display: none;
+}
+
+/* 单个信息表卡片 */
+.info-table-card {
+    background: white;
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    transition: all 0.2s;
+}
+.info-table-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+.info-table-card.hidden {
+    display: none;
+}
+
+/* 信息表头部 */
+.table-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, var(--apple-blue) 0%, #5AC8FA 100%);
+    color: white;
+}
+.table-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+}
+.table-card-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+.table-card-actions button {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.table-card-actions button:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 信息表内容 */
+.table-card-body {
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+/* 数据表格 */
+.info-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    table-layout: fixed;
+}
+.info-data-table th,
+.info-data-table td {
+    padding: 0.625rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--apple-border);
+    word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.info-data-table th {
+    background: var(--apple-bg);
+    font-weight: 600;
+    color: var(--apple-dark);
+    white-space: nowrap;
+}
+.info-data-table td {
+    white-space: normal;
+    min-width: 100px;
+}
+.info-data-table tbody tr:hover {
+    background: rgba(0, 113, 227, 0.03);
+}
+.info-data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+/* 操作列固定宽度 */
+.info-data-table .col-actions {
+    width: 100px;
+    text-align: center;
+}
+
+/* 表格操作按钮 */
+.row-actions {
+    display: flex;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+.row-actions button {
+    background: none;
+    border: none;
+    color: var(--apple-blue);
+    cursor: pointer;
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+.row-actions button:hover {
+    background: rgba(0, 113, 227, 0.1);
+}
+.row-actions button.delete-btn:hover {
+    color: var(--apple-red);
+    background: rgba(255, 59, 48, 0.1);
+}
+
+/* 空状态 */
+.table-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--apple-gray);
+}
+.table-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    opacity: 0.4;
+}
+
+/* 表单 */
+.form-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--apple-gray);
+    margin-top: 0.25rem;
+}
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+.form-grid-2 .form-group {
+    margin-bottom: 0;
+}
+
+/* Modal 大小 */
+.modal-medium {
+    max-width: 480px;
+}
+.modal-large {
+    max-width: 640px;
+}
+.modal-small {
+    max-width: 400px;
+}
+.modal-body {
+    padding: 1.5rem;
+}
+.modal-body p {
+    margin: 0;
+    color: var(--apple-dark);
+}
+
+/* 空表格占位 */
+.table-placeholder {
+    padding: 3rem 1rem;
+    text-align: center;
+    color: var(--apple-gray);
+}
+.table-placeholder-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1rem;
+    opacity: 0.3;
+}
+</style>
+
+<script>
+let allTables = [];
+let currentTableId = null;
+
+function loadInfoTables() {
+    fetch('/api/info-list')
+        .then(r => r.json())
+        .then(data => {
+            allTables = data.tables || [];
+            renderTables();
+        });
+}
+
+function renderTables() {
+    const container = document.getElementById('tablesContainer');
+    
+    if (allTables.length === 0) {
+        container.innerHTML = `
+            <div class="info-table-card">
+                <div class="table-empty">
+                    <svg class="table-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p>暂无信息表</p>
+                    <p style="font-size: 0.875rem;">点击右上角"添加信息表"创建</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = allTables.map(table => {
+        const rows = table.rows || [];
+        const headers = table.headers || ['Key', 'Value'];
+        
+        return `
+            <div class="info-table-card" data-table-id="${table.id}" data-table-name="${table.name.toLowerCase()}">
+                <div class="table-card-header">
+                    <h3 class="table-card-title">${escapeHtml(table.name)}</h3>
+                    <div class="table-card-actions">
+                        <button onclick="showAddRowModal(${table.id})" title="添加数据">
+                            <svg style="width:14px;height:14px;vertical-align:middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            添加
+                        </button>
+                        <button onclick="deleteTable(${table.id})" title="删除表">
+                            <svg style="width:14px;height:14px;vertical-align:middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="table-card-body">
+                    ${rows.length > 0 ? `
+                        <table class="info-data-table">
+                            <thead>
+                                <tr>
+                                    ${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}
+                                    <th class="col-actions">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows.map((row, idx) => `
+                                    <tr>
+                                        ${headers.map(h => `<td>${escapeHtml(row[h] || '-')}</td>`).join('')}
+                                        <td class="col-actions">
+                                            <div class="row-actions">
+                                                <button onclick="showEditRowModal(${table.id}, ${idx})">编辑</button>
+                                                <button class="delete-btn" onclick="deleteRow(${table.id}, ${idx})">删除</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : `
+                        <div class="table-placeholder">
+                            <svg class="table-placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                            </svg>
+                            <p>暂无数据</p>
+                            <button onclick="showAddRowModal(${table.id})" class="btn btn-primary btn-sm" style="margin-top:0.75rem">添加第一条数据</button>
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function filterTables(searchText) {
+    const cards = document.querySelectorAll('.info-table-card');
+    const text = searchText.toLowerCase().trim();
+    
+    cards.forEach(card => {
+        const name = card.dataset.tableName || '';
+        if (text === '' || name.includes(text)) {
+            card.classList.remove('hidden');
+        } else {
+            card.classList.add('hidden');
+        }
+    });
+}
+
+// 添加信息表
+function showAddTableModal() {
+    document.getElementById('addTableModal').classList.remove('hidden');
+    document.getElementById('addTableModal').classList.add('flex');
+}
+
+function closeAddTableModal() {
+    document.getElementById('addTableModal').classList.add('hidden');
+    document.getElementById('addTableModal').classList.remove('flex');
+    document.getElementById('addTableForm').reset();
+}
+
+document.getElementById('addTableForm').onsubmit = function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const name = form.name.value.trim();
+    let headers = form.headers.value.trim();
+    
+    // 解析表头
+    if (headers === '') {
+        headers = ['Key', 'Value'];
+    } else {
+        headers = headers.split(/[，,]/).map(h => h.trim()).filter(h => h !== '');
+        if (headers.length === 0) {
+            headers = ['Key', 'Value'];
+        }
+    }
+    
+    fetch('/api/info-list', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            action: 'create_table',
+            name: name,
+            headers: headers
+        })
+    }).then(r => r.json())
+      .then(data => {
+          if (data.success) {
+              closeAddTableModal();
+              loadInfoTables();
+          }
+      });
+};
+
+// 删除信息表
+function deleteTable(tableId) {
+    currentTableId = tableId;
+    document.getElementById('deleteModal').classList.remove('hidden');
+    document.getElementById('deleteModal').classList.add('flex');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.add('hidden');
+    document.getElementById('deleteModal').classList.remove('flex');
+    currentTableId = null;
+}
+
+function confirmDelete() {
+    if (!currentTableId) return;
+    
+    fetch(`/api/info-list/${currentTableId}`, {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({type: 'table'})
+    }).then(r => r.json())
+      .then(data => {
+          if (data.success) {
+              closeDeleteModal();
+              loadInfoTables();
+          }
+      });
+}
+
+// 添加行
+function showAddRowModal(tableId) {
+    const table = allTables.find(t => t.id === tableId);
+    if (!table) return;
+    
+    const headers = table.headers || ['Key', 'Value'];
+    const form = document.getElementById('addRowForm');
+    form.table_id.value = tableId;
+    
+    const fieldsContainer = document.getElementById('rowFormFields');
+    fieldsContainer.innerHTML = headers.map(h => `
+        <div class="form-group">
+            <label class="form-label">${escapeHtml(h)}</label>
+            <input type="text" name="col_${escapeAttr(h)}" class="form-input" placeholder="输入 ${escapeHtml(h)}">
+        </div>
+    `).join('');
+    
+    document.getElementById('addRowModal').classList.remove('hidden');
+    document.getElementById('addRowModal').classList.add('flex');
+}
+
+function closeAddRowModal() {
+    document.getElementById('addRowModal').classList.add('hidden');
+    document.getElementById('addRowModal').classList.remove('flex');
+}
+
+document.getElementById('addRowForm').onsubmit = function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const tableId = parseInt(form.table_id.value);
+    const table = allTables.find(t => t.id === tableId);
+    if (!table) return;
+    
+    const headers = table.headers || ['Key', 'Value'];
+    const row = {};
+    headers.forEach(h => {
+        const input = form[`col_${h}`];
+        if (input) {
+            row[h] = input.value;
+        }
+    });
+    
+    fetch('/api/info-list', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            action: 'add_row',
+            table_id: tableId,
+            row: row
+        })
+    }).then(r => r.json())
+      .then(data => {
+          if (data.success) {
+              closeAddRowModal();
+              loadInfoTables();
+          }
+      });
+};
+
+// 编辑行
+function showEditRowModal(tableId, rowIndex) {
+    const table = allTables.find(t => t.id === tableId);
+    if (!table || !table.rows || !table.rows[rowIndex]) return;
+    
+    const headers = table.headers || ['Key', 'Value'];
+    const row = table.rows[rowIndex];
+    const form = document.getElementById('editRowForm');
+    form.table_id.value = tableId;
+    form.row_index.value = rowIndex;
+    
+    const fieldsContainer = document.getElementById('editRowFormFields');
+    fieldsContainer.innerHTML = headers.map(h => `
+        <div class="form-group">
+            <label class="form-label">${escapeHtml(h)}</label>
+            <input type="text" name="col_${escapeAttr(h)}" class="form-input" value="${escapeAttr(row[h] || '')}">
+        </div>
+    `).join('');
+    
+    document.getElementById('editRowModal').classList.remove('hidden');
+    document.getElementById('editRowModal').classList.add('flex');
+}
+
+function closeEditRowModal() {
+    document.getElementById('editRowModal').classList.add('hidden');
+    document.getElementById('editRowModal').classList.remove('flex');
+}
+
+document.getElementById('editRowForm').onsubmit = function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const tableId = parseInt(form.table_id.value);
+    const rowIndex = parseInt(form.row_index.value);
+    const table = allTables.find(t => t.id === tableId);
+    if (!table) return;
+    
+    const headers = table.headers || ['Key', 'Value'];
+    const row = {};
+    headers.forEach(h => {
+        const input = form[`col_${h}`];
+        if (input) {
+            row[h] = input.value;
+        }
+    });
+    
+    fetch(`/api/info-list/${tableId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            action: 'update_row',
+            row_index: rowIndex,
+            row: row
+        })
+    }).then(r => r.json())
+      .then(data => {
+          if (data.success) {
+              closeEditRowModal();
+              loadInfoTables();
+          }
+      });
+};
+
+// 删除行
+function deleteRow(tableId, rowIndex) {
+    fetch(`/api/info-list/${tableId}`, {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({type: 'row', row_index: rowIndex})
+    }).then(r => r.json())
+      .then(data => {
+          if (data.success) {
+              loadInfoTables();
+          }
+      });
+}
+
+// 工具函数
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function escapeAttr(text) {
+    if (!text) return '';
+    return text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// 初始化
+loadInfoTables();
+</script>
+{% endblock %}

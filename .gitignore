@@ -1,0 +1,19 @@
+# 系统文件
+.DS_Store
+
+# 虚拟环境
+venv/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.so
+
+# 日志
+debug.log
+
+# 图片/临时导入文件（如需纳入请调整）
+*.png
+*.jpg
+*.jpeg
+*.xlsx

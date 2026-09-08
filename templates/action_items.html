@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+
+{% block title %}Action Items - Station & Camera DRI Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Action Items</h1>
+    <p class="page-subtitle">管理和追踪所有进行中的项目任务</p>
+</div>
+
+<div class="page-toolbar">
+    <div class="filter-group">
+        <select id="statusFilter" onchange="loadActionItems()" class="filter-select">
+            <option value="">全部状态</option>
+            <option value="进行中">进行中</option>
+            <option value="已完成">已完成</option>
+            <option value="已取消">已取消</option>
+        </select>
+    </div>
+    <button onclick="showAddModal()" class="btn btn-primary">
+        <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+        </svg>
+        添加 Action Item
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>标题</th>
+                        <th>DRI</th>
+                        <th>ETA</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="actionItemsTable">
+                    <tr><td colspan="6" class="loading-cell"><div class="spinner"></div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 添加 Modal -->
+<div id="addModal" class="modal-overlay hidden" onclick="closeAddModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">添加 Action Item</h3>
+            <button onclick="closeAddModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="addForm" class="modal-form">
+            <div class="form-group">
+                <label class="form-label">标题</label>
+                <input type="text" name="title" required class="form-input" placeholder="输入任务标题">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">DRI（负责人）</label>
+                    <input type="text" name="dri" class="form-input" placeholder="负责人姓名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ETA（完成日期）</label>
+                    <input type="date" name="eta" class="form-input">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeAddModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">添加</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 编辑 Modal -->
+<div id="editModal" class="modal-overlay hidden" onclick="closeEditModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">编辑 Action Item</h3>
+            <button onclick="closeEditModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="editForm" class="modal-form">
+            <input type="hidden" name="id">
+            <div class="form-group">
+                <label class="form-label">标题</label>
+                <input type="text" name="title" required class="form-input" placeholder="输入任务标题">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">DRI（负责人）</label>
+                    <input type="text" name="dri" class="form-input" placeholder="负责人姓名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ETA（完成日期）</label>
+                    <input type="date" name="eta" class="form-input">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">状态</label>
+                <select name="status" class="form-select">
+                    <option value="进行中">进行中</option>
+                    <option value="已完成">已完成</option>
+                    <option value="已取消">已取消</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeEditModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.page-header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+}
+.page-title {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--apple-dark);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+}
+.page-subtitle {
+    font-size: 1.125rem;
+    color: var(--apple-gray);
+    font-weight: 400;
+}
+.page-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.filter-select {
+    appearance: none;
+    background: white;
+    border: 1px solid var(--apple-border);
+    padding: 0.625rem 2.5rem 0.625rem 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    color: var(--apple-dark);
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2386868b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 0.875rem;
+    transition: all var(--transition-fast);
+}
+.filter-select:hover {
+    border-color: var(--apple-blue);
+}
+.table-wrapper {
+    overflow-x: auto;
+}
+.card {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+.card-body {
+    padding: 0;
+}
+.p-0 {
+    padding: 0 !important;
+}
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.data-table th {
+    text-align: left;
+    padding: 1rem 1.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--apple-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--apple-bg-secondary);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.data-table td {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    color: var(--apple-dark);
+}
+.data-table tbody tr:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.loading-cell {
+    text-align: center;
+    padding: 3rem !important;
+}
+.modal-form {
+    padding: 1.5rem;
+}
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+.form-input, .form-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 1px solid var(--apple-border);
+    border-radius: var(--radius-sm);
+    color: var(--apple-dark);
+    background: white;
+    transition: all var(--transition-fast);
+}
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--apple-blue);
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+}
+.form-input::placeholder {
+    color: var(--apple-gray);
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+.modal-btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+.modal-btn-cancel {
+    background: var(--apple-bg-secondary);
+    color: var(--apple-dark);
+}
+.modal-btn-cancel:hover {
+    background: #E8E8ED;
+}
+.modal-btn-primary {
+    background: var(--apple-blue);
+    color: white;
+}
+.modal-btn-primary:hover {
+    background: var(--apple-blue-hover);
+}
+</style>
+
+<script>
+let allItems = [];
+
+function loadActionItems() {
+    fetch('/api/action-items')
+        .then(r => r.json())
+        .then(data => {
+            allItems = data;
+            renderTable();
+        });
+}
+
+function renderTable() {
+    const filter = document.getElementById('statusFilter').value;
+    const items = filter ? allItems.filter(i => i.status === filter) : allItems;
+    
+    const tbody = document.getElementById('actionItemsTable');
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = items.map(item => {
+        const isOverdue = item.eta && new Date(item.eta) < new Date() && item.status === '进行中';
+        return `
+            <tr class="${isOverdue ? 'row-overdue' : ''}">
+                <td class="text-secondary">${item.id}</td>
+                <td><span class="font-medium">${item.title}</span></td>
+                <td>${item.dri || '<span class="text-secondary">-</span>'}</td>
+                <td class="${isOverdue ? 'text-danger font-semibold' : ''}">
+                    ${item.eta || '-'}
+                    ${isOverdue ? '<span class="badge badge-danger ml-2">逾期</span>' : ''}
+                </td>
+                <td>
+                    <span class="badge badge-${item.status === '已完成' ? 'success' : item.status === '已取消' ? 'secondary' : 'info'}">
+                        ${item.status}
+                    </span>
+                </td>
+                <td>
+                    <button onclick="showEditModal(${item.id})" class="btn-text btn-text-primary">编辑</button>
+                    <button onclick="deleteItem(${item.id})" class="btn-text btn-text-danger">删除</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function showAddModal() {
+    document.getElementById('addModal').classList.remove('hidden');
+    document.getElementById('addModal').classList.add('flex');
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').classList.add('hidden');
+    document.getElementById('addModal').classList.remove('flex');
+    document.getElementById('addForm').reset();
+}
+
+function showEditModal(id) {
+    const item = allItems.find(i => i.id === id);
+    if (!item) return;
+    
+    const form = document.getElementById('editForm');
+    form.id.value = item.id;
+    form.title.value = item.title;
+    form.dri.value = item.dri || '';
+    form.eta.value = item.eta || '';
+    form.status.value = item.status || '进行中';
+    
+    document.getElementById('editModal').classList.remove('hidden');
+    document.getElementById('editModal').classList.add('flex');
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+    document.getElementById('editModal').classList.remove('flex');
+    document.getElementById('editForm').reset();
+}
+
+document.getElementById('addForm').onsubmit = function(e) {
+    e.preventDefault();
+    const form = e.target;
+    fetch('/api/action-items', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            title: form.title.value,
+            dri: form.dri.value,
+            eta: form.eta.value
+        })
+    }).then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            closeAddModal();
+            loadActionItems();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    })
+    .catch(() => alert('请求失败'));
+};
+
+document.getElementById('editForm').onsubmit = function(e) {
+    e.preventDefault();
+    const form = e.target;
+    fetch(`/api/action-items/${form.id.value}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            title: form.title.value,
+            dri: form.dri.value,
+            eta: form.eta.value,
+            status: form.status.value
+        })
+    }).then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            closeEditModal();
+            loadActionItems();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    })
+    .catch(() => alert('请求失败'));
+};
+
+function deleteItem(id) {
+    if (!confirm('确定删除此 Action Item 吗？')) return;
+    fetch(`/api/action-items/${id}`, {method: 'DELETE'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                loadActionItems();
+            } else {
+                alert(data.message || '操作失败');
+            }
+        })
+        .catch(() => alert('请求失败'));
+}
+
+// 初始加载
+loadActionItems();
+</script>
+
+<style>
+.empty-cell {
+    text-align: center;
+    padding: 3rem !important;
+    color: var(--apple-gray);
+}
+.row-overdue {
+    background: rgba(255, 59, 48, 0.03);
+}
+.text-secondary {
+    color: var(--apple-gray);
+}
+.text-danger {
+    color: var(--apple-red);
+}
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: var(--radius-full);
+}
+.badge-success {
+    background: rgba(52, 199, 89, 0.12);
+    color: #28a745;
+}
+.badge-info {
+    background: rgba(0, 113, 227, 0.12);
+    color: var(--apple-blue);
+}
+.badge-danger {
+    background: rgba(255, 59, 48, 0.12);
+    color: var(--apple-red);
+}
+.badge-secondary {
+    background: var(--apple-bg-secondary);
+    color: var(--apple-gray);
+}
+.ml-2 {
+    margin-left: 0.5rem;
+}
+.font-medium {
+    font-weight: 500;
+}
+.font-semibold {
+    font-weight: 600;
+}
+.btn-text {
+    background: none;
+    border: none;
+    font-size: 0.875rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+.btn-text-primary {
+    color: var(--apple-blue);
+}
+.btn-text-primary:hover {
+    background: rgba(0, 113, 227, 0.1);
+}
+.btn-text-danger {
+    color: var(--apple-red);
+}
+.btn-text-danger:hover {
+    background: rgba(255, 59, 48, 0.1);
+}
+</style>
+{% endblock %}

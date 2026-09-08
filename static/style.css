@@ -1,0 +1,525 @@
+/* Station & Camera DRI Management - Base Styles */
+
+/* CSS Variables */
+:root {
+    --apple-blue: #0071E3;
+    --apple-blue-hover: #0077ED;
+    --apple-dark: #1d1d1f;
+    --apple-gray: #86868b;
+    --apple-bg-secondary: #f5f5f7;
+    --apple-border: #d2d2d7;
+    --apple-red: #FF3B30;
+    --apple-green: #34C759;
+    --apple-purple: #AF52DE;
+    --apple-orange: #FF9500;
+    --apple-cyan: #5AC8FA;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+    --transition-fast: 0.15s ease;
+    --transition-smooth: 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Reset & Base */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: linear-gradient(180deg, #FBFBFD 0%, #F5F5F7 100%);
+    min-height: 100vh;
+    color: var(--apple-dark);
+    line-height: 1.5;
+}
+
+::selection {
+    background: var(--apple-blue);
+    color: white;
+}
+
+/* Navigation */
+.apple-nav {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--apple-dark);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.125rem;
+}
+
+.logo-icon {
+    width: 28px;
+    height: 28px;
+    color: var(--apple-blue);
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.nav-link {
+    color: var(--apple-gray);
+    padding: 0.5rem 0.875rem;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    font-weight: 500;
+    font-size: 0.875rem;
+    text-decoration: none;
+}
+
+.nav-link:hover {
+    color: var(--apple-dark);
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.nav-auth {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.nav-user {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--apple-dark);
+}
+
+.user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--apple-blue) 0%, var(--apple-cyan) 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.nav-login {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--apple-blue);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.5rem 0.875rem;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.nav-login:hover {
+    background: rgba(0, 113, 227, 0.1);
+}
+
+.nav-login svg {
+    width: 18px;
+    height: 18px;
+}
+
+.nav-logout {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--apple-gray);
+    text-decoration: none;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.875rem;
+    border-radius: var(--radius-sm);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.nav-logout:hover {
+    color: var(--apple-red);
+    background: rgba(255, 59, 48, 0.1);
+}
+
+.nav-logout svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Main Content */
+.main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 2rem 4rem;
+}
+
+/* Footer */
+.site-footer {
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 2rem;
+    text-align: center;
+    color: var(--apple-gray);
+    font-size: 0.75rem;
+}
+
+.footer-container p {
+    margin-bottom: 0.25rem;
+}
+
+/* Page Header */
+.page-header {
+    text-align: center;
+    padding: 2rem 0 1.5rem;
+}
+
+.page-title {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--apple-dark);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+    font-size: 1.125rem;
+    color: var(--apple-gray);
+    font-weight: 400;
+}
+
+/* Utility Classes */
+.hidden {
+    display: none !important;
+}
+
+.flex {
+    display: flex !important;
+}
+
+/* Card */
+.card {
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 1.5rem;
+    text-align: center;
+    display: block;
+    transition: all var(--transition-smooth);
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+/* Form focus */
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+    border-color: var(--apple-blue);
+}
+
+/* Button transitions */
+button {
+    transition: all var(--transition-fast);
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Status badges */
+.badge-success {
+    background-color: #d1fae5;
+    color: #047857;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+}
+
+.badge-warning {
+    background-color: #fef3c7;
+    color: #b45309;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+}
+
+.badge-danger {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+}
+
+.badge-info {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+}
+
+/* Modal Styles - 放在最顶层 */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 1rem;
+}
+
+.modal-overlay.flex {
+    display: flex !important;
+}
+
+.modal-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--apple-dark);
+}
+
+.modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: var(--apple-bg-secondary);
+    color: var(--apple-gray);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+    background: #e8e8ed;
+    color: var(--apple-dark);
+}
+
+.modal-close svg {
+    width: 16px;
+    height: 16px;
+}
+
+.modal-form {
+    padding: 1.5rem 2rem 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--apple-dark);
+    margin-bottom: 0.5rem;
+}
+
+.form-input, .form-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--apple-border);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    color: var(--apple-dark);
+    transition: all var(--transition-fast);
+    background: white;
+}
+
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--apple-blue);
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+}
+
+.form-input::placeholder {
+    color: var(--apple-gray);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.modal-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: none;
+}
+
+.modal-btn-cancel {
+    background: var(--apple-bg-secondary);
+    color: var(--apple-dark);
+}
+
+.modal-btn-cancel:hover {
+    background: #e8e8ed;
+}
+
+.modal-btn-primary {
+    background: var(--apple-blue);
+    color: white;
+}
+
+.modal-btn-primary:hover {
+    background: var(--apple-blue-hover);
+}
+
+/* Button variations */
+.btn-primary {
+    background-color: var(--apple-blue);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
+    background-color: var(--apple-blue-hover);
+}
+
+.btn-secondary {
+    background-color: var(--apple-bg-secondary);
+    color: var(--apple-dark);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background-color: #e8e8ed;
+}
+
+.btn-danger {
+    background-color: var(--apple-red);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+}
+
+.btn-danger:hover {
+    background-color: #E33B2C;
+}
+
+.btn-success {
+    background-color: var(--apple-green);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+}
+
+.btn-success:hover {
+    background-color: #2DB84D;
+}
+
+.btn-icon {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Link styles */
+a {
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .nav-container {
+        padding: 0 1rem;
+    }
+    
+    .nav-links {
+        display: none;
+    }
+    
+    .main-content {
+        padding: 1rem;
+    }
+    
+    .page-title {
+        font-size: 1.75rem;
+    }
+}

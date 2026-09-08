@@ -1,0 +1,293 @@
+{
+  "sheets": [
+    {
+      "name": "Skills Details",
+      "headers": [
+        "部门",
+        "Skill名称",
+        "描述",
+        "DRI",
+        "状态",
+        "备注"
+      ],
+      "rows": [
+        {
+          "部门": "HWTE5",
+          "描述": "画Jasmine-IMU测试log里面采样数据图",
+          "dri": "Lee Li",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE5",
+          "描述": "IO站位每个Build需要画测试的distribution以及按照报告格式整理好，发送给客人review，以及和客人开会review。",
+          "dri": "Frank Zheng",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE5",
+          "描述": "Barbie站位测试data画曲线，用来分析 DUT的Fail原因。",
+          "dri": "Scott Yang",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE5",
+          "描述": "DVI Standalone和DVI-Conveyor Test Coverage比对",
+          "dri": "Kai Ji",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE5",
+          "描述": "FACT Conveyor测试log初步分析报告",
+          "dri": "Kunming Hu",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE5",
+          "描述": "Touch DR完成之后，需要将对应的回执贴到Excel里面，然后来report。",
+          "dri": "Andy Zhang",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE5",
+          "描述": "iSD 测试log初步分析报告",
+          "dri": "Marvin Chen",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE5",
+          "描述": "DVI测试log初步分析报告",
+          "dri": "Emily Hu",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE6",
+          "描述": "对同一文件夹中的CSV进行比对(Test Item& Limit)，输出Excel",
+          "dri": "Teddy",
+          "状态": "Done",
+          "备注": "在不同电脑上进行比对中",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE6",
+          "描述": "分析log数据，提取机台基础信息和Fail info",
+          "dri": "Bob",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE6",
+          "描述": "数据对比技能，支持log的分析和比对",
+          "dri": "Li Hu",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE6",
+          "描述": "实现自动执行导入csv文件，画图导出功能",
+          "dri": "Yingmin",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE7",
+          "描述": "基于IMU csv data, 绘制机台IMU 运动估计图",
+          "dri": "Ada",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE7",
+          "描述": "基于AF data 绘制自动对焦图形。",
+          "dri": "Zengjun",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE7",
+          "描述": "对excel 数据进行行列转置",
+          "dri": "Jingjing",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE7",
+          "描述": "自动登录GHDS",
+          "dri": "Adnachiel",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE7",
+          "描述": "输入日程安排，自动生成甘特图",
+          "dri": "Jax",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE8",
+          "描述": "根据csv by sub-test item summary RR/FR",
+          "dri": "Yuzhen",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE8",
+          "描述": "根据csv, 生成VA相关 fail 分析报告",
+          "dri": "Yuzhen",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE8",
+          "描述": "使用 ImageViewer.app打开 RCAM0_AE700_Blemish_F4.420 文件",
+          "dri": "DK",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE8",
+          "描述": "保存Voyager测试log里cmx图片到指定文件夹",
+          "dri": "Benson",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE8",
+          "描述": "基于Rack2 raw csv data,统计pass & fail rate",
+          "dri": "Mona",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE6",
+          "描述": "一个强大的文件格式转换工具，支持各种常见文件格式之间的相互转换。\n 表格数据格式\n- CSV ↔ Excel (xlsx/xls)\n- CSV ↔ JSON\n- CSV ↔ HTML\n- CSV ↔ XML\n- CSV ↔ TSV\n- CSV ↔ Markdown\n- CSV ↔ YAML\n\n### 🖼️ 图像格式\n- PNG ↔ JPG/JPEG\n- PNG ↔ GIF\n- PNG ↔ BMP\n- PNG ↔ WebP\n- PNG ↔ TIFF\n\n### 📝 文本格式\n- Markdown ↔ HTML\n- JSON ↔ YAML\n- JSON ↔ XML\n- INI/CFG ↔ JSON\n- 纯文本格式互转",
+          "dri": "Bob",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE5",
+          "描述": "每周需要更新Skill的进度表格，然后需要汇整表格，这个skill可以完成一个网页共享编辑。",
+          "dri": "Marvin Chen",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE8",
+          "描述": "将桌面的*.xlsx文件自动归类到File文件夹中",
+          "dri": "Yiqing Yang",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE8",
+          "描述": "将excel中item列自动按序标出item号码",
+          "dri": "Noora Liu",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE6",
+          "描述": "log中会有大量采样的输出，统一提取方便数据采集，处理",
+          "dri": "Selena An",
+          "状态": "In Progress",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE5",
+          "描述": "By不同的治具slot生成distribution plot，并完成初步结论",
+          "dri": "Scott Yang",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        },
+        {
+          "部门": "HWTE6",
+          "描述": "将口语化/零散/英文不佳的issue 描述，改写为结论先行、条列式的简报并输出中英文双版本",
+          "dri": "Teddy Wu",
+          "状态": "Done",
+          "备注": "",
+          "operator": "Alston",
+          "created_at": "2026-09-08 14:06"
+        }
+      ],
+      "operator": "Alston",
+      "id": 1,
+      "created_at": "2026-09-08 08:04"
+    },
+    {
+      "name": "问题",
+      "headers": [
+        "部门",
+        "问题",
+        "答复"
+      ],
+      "rows": [],
+      "operator": "Alston",
+      "id": 2,
+      "created_at": "2026-09-08 14:15"
+    }
+  ]
+}

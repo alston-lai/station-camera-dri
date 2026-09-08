@@ -1,0 +1,995 @@
+{% extends "base.html" %}
+
+{% block title %}部门信息 - Station & Camera DRI Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">部门人员信息</h1>
+    <p class="page-subtitle">实时查看各部门人员变动情况</p>
+</div>
+
+<!-- 部门汇总卡片 -->
+<div id="summaryCards" class="dept-grid">
+    <!-- 动态加载 -->
+</div>
+
+<!-- 详细人员表格 -->
+<div class="detail-section">
+    <div class="detail-header">
+        <h2 class="detail-title">人员详细信息</h2>
+        <div class="detail-actions">
+            <select id="deptSelect" class="dept-filter-select">
+                <option value="全体">全体</option>
+                {% for dept in departments %}
+                <option value="{{ dept }}">{{ dept }}</option>
+                {% endfor %}
+            </select>
+            <button onclick="loadDetailData()" class="action-btn action-btn-secondary">
+                查看详情
+            </button>
+            <button onclick="showAddMemberModal()" class="action-btn action-btn-success">
+                <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                添加人员
+            </button>
+            <button onclick="showAddRecordModal()" class="action-btn action-btn-primary">
+                <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                添加变动
+            </button>
+            <button onclick="exportDepartment()" class="action-btn action-btn-secondary">
+                <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                导出
+            </button>
+            <label class="action-btn action-btn-secondary" style="cursor: pointer;">
+                <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                导入
+                <input type="file" id="importFile" accept=".xlsx,.xls" style="display: none;" onchange="importDepartment(this)">
+            </label>
+        </div>
+    </div>
+    
+    <div id="detailTable" class="detail-content">
+        <div class="empty-state">
+            <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            <p>请选择部门查看详细信息</p>
+        </div>
+    </div>
+</div>
+
+<!-- 添加人员 Modal -->
+<div id="addMemberModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title">添加部门成员</h3>
+            <button onclick="closeMemberModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="addMemberForm" class="modal-form">
+            <div class="form-group">
+                <label class="form-label">部门</label>
+                <select name="department" required class="form-select">
+                    {% for dept in departments %}
+                    <option value="{{ dept }}">{{ dept }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">工号</label>
+                <input type="text" name="employee_id" required class="form-input" placeholder="请输入工号">
+            </div>
+            <div class="form-group">
+                <label class="form-label">姓名</label>
+                <input type="text" name="name" required class="form-input" placeholder="请输入姓名">
+            </div>
+            <div class="form-group">
+                <label class="form-label">级别</label>
+                <input type="text" name="level" class="form-input" placeholder="请输入级别">
+            </div>
+            <div class="form-group">
+                <label class="form-label">电话</label>
+                <input type="text" name="phone" class="form-input" placeholder="请输入电话">
+            </div>
+            <div class="form-group">
+                <label class="form-label">邮箱</label>
+                <input type="email" name="email" class="form-input" placeholder="请输入邮箱">
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeMemberModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">添加</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 添加变动 Modal -->
+<div id="addRecordModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title">添加人员变动</h3>
+            <button onclick="closeRecordModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="addRecordForm" class="modal-form">
+            <div class="form-group">
+                <label class="form-label">变动类型</label>
+                <select name="type" required class="form-select">
+                    <option value="joined">入职</option>
+                    <option value="left">离职</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">部门</label>
+                <select name="department" required class="form-select">
+                    {% for dept in departments %}
+                    <option value="{{ dept }}">{{ dept }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">姓名</label>
+                <input type="text" name="name" required class="form-input" placeholder="请输入姓名">
+            </div>
+            <div class="form-group">
+                <label class="form-label">工号</label>
+                <input type="text" name="employee_id" class="form-input" placeholder="离职时填写以自动从部门移除">
+            </div>
+            <div class="form-group">
+                <label class="form-label">日期</label>
+                <input type="date" name="date" required class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">变动原因</label>
+                <input type="text" name="reason" class="form-input" placeholder="离职必填">
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeRecordModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">添加</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* 页面头部 */
+.page-header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+}
+.page-title {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: #1d1d1f;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+}
+.page-subtitle {
+    font-size: 1.125rem;
+    color: #86868b;
+    font-weight: 400;
+}
+
+
+
+/* 部门卡片网格 */
+.dept-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+/* 部门卡片 */
+.dept-card {
+    background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
+    border-radius: 24px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+.dept-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--dept-color-1), var(--dept-color-2));
+}
+.dept-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+.dept-card-5部 { --dept-color-1: #FF6B6B; --dept-color-2: #FF8E8E; }
+.dept-card-六部 { --dept-color-1: #4ECDC4; --dept-color-2: #7EDDD6; }
+.dept-card-七部 { --dept-color-1: #45B7D1; --dept-color-2: #7DCDE0; }
+.dept-card-八部 { --dept-color-1: #96CEB4; --dept-color-2: #B5DFC8; }
+
+.dept-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+    background: linear-gradient(135deg, var(--dept-color-1) 0%, var(--dept-color-2) 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.dept-icon svg {
+    width: 28px;
+    height: 28px;
+    color: rgba(0, 0, 0, 0.6);
+}
+.dept-name {
+    font-size: 0.875rem;
+    color: #86868b;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.dept-number {
+    font-size: 3.5rem;
+    font-weight: 600;
+    color: #1d1d1f;
+    line-height: 1;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.03em;
+}
+.dept-unit {
+    font-size: 1.25rem;
+    color: #86868b;
+    font-weight: 400;
+    margin-left: 0.25rem;
+}
+.dept-stats {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f0f0f0;
+}
+.dept-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+}
+.dept-stat-joined {
+    color: #34c759;
+}
+.dept-stat-left {
+    color: #ff3b30;
+}
+.dept-stat svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* 详情区域 */
+.detail-section {
+    background: #ffffff;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+}
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #f0f0f0;
+    background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+}
+.detail-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1d1d1f;
+}
+.detail-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.dept-filter-select {
+    appearance: none;
+    background: #f5f5f7;
+    border: none;
+    padding: 0.625rem 2rem 0.625rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: #1d1d1f;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2386868b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    background-size: 0.75rem;
+}
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.625rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+.action-btn-primary {
+    background: #0071e3;
+    color: white;
+}
+.action-btn-primary:hover {
+    background: #0077ED;
+}
+.action-btn-secondary {
+    background: #f5f5f7;
+    color: #1d1d1f;
+}
+.action-btn-secondary:hover {
+    background: #e8e8ed;
+}
+.action-btn-success {
+    background: #34c759;
+    color: white;
+}
+.action-btn-success:hover {
+    background: #30d158;
+}
+.btn-icon {
+    width: 1rem;
+    height: 1rem;
+}
+.detail-content {
+    padding: 2rem;
+}
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    color: #86868b;
+}
+.empty-icon {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* Modal 样式 */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.modal-card {
+    background: white;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1d1d1f;
+}
+.modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: #f5f5f7;
+    color: #86868b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.modal-close:hover {
+    background: #e8e8ed;
+    color: #1d1d1f;
+}
+.modal-close svg {
+    width: 16px;
+    height: 16px;
+}
+.modal-form {
+    padding: 1.5rem 2rem 2rem;
+}
+.form-group {
+    margin-bottom: 1.25rem;
+}
+.form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #1d1d1f;
+    margin-bottom: 0.5rem;
+}
+.form-input, .form-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #d2d2d7;
+    border-radius: 10px;
+    font-size: 1rem;
+    color: #1d1d1f;
+    transition: all 0.2s;
+    background: white;
+}
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: #0071e3;
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+}
+.form-input::placeholder {
+    color: #86868b;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #f0f0f0;
+}
+.modal-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+.modal-btn-cancel {
+    background: #f5f5f7;
+    color: #1d1d1f;
+}
+.modal-btn-cancel:hover {
+    background: #e8e8ed;
+}
+.modal-btn-primary {
+    background: #0071e3;
+    color: white;
+}
+.modal-btn-primary:hover {
+    background: #0077ED;
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+    .dept-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (max-width: 640px) {
+    .dept-grid {
+        grid-template-columns: 1fr;
+    }
+    .page-title {
+        font-size: 1.75rem;
+    }
+    .detail-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .detail-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .detail-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+</style>
+
+<script>
+
+// 从模板传入的权限变量
+const canEditDept = {{ 'true' if can_edit else 'false' }};
+
+
+
+
+function loadDetailData() {
+    const dept = document.getElementById('deptSelect').value;
+    if (!dept) {
+        alert('请选择部门');
+        return;
+    }
+    
+    const apiUrl = dept === '全体' 
+        ? '/api/department/all'
+        : `/api/department/detail?department=${encodeURIComponent(dept)}`;
+    
+    fetch(apiUrl)
+        .then(r => r.json())
+        .then(data => {
+            const table = document.getElementById('detailTable');
+            const displayDept = dept === '全体' ? '全部部门' : dept;
+            const totalCount = dept === '全体' 
+                ? data.total_count || 0 
+                : data.current.length;
+            
+            // 根据权限决定是否显示操作列
+            const showActions = canEditDept;
+            const thActions = showActions ? '<th>操作</th>' : '';
+            const colCount = dept === '全体' ? (showActions ? '7' : '6') : (showActions ? '6' : '5');
+            
+            table.innerHTML = `
+                <div class="detail-dept-header">
+                    <h3 class="detail-dept-name">${displayDept}</h3>
+                    <span class="detail-dept-count">${totalCount} 人</span>
+                </div>
+                
+                <div class="detail-tables">
+                    <div class="detail-table-section">
+                        <div class="detail-table-header detail-table-header-current">
+                            <svg class="detail-table-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            在职人员
+                        </div>
+                        <table class="detail-table">
+                            <thead>
+                                <tr>
+                                    ${dept === '全体' ? '<th>部门</th>' : ''}
+                                    <th>工号</th>
+                                    <th>姓名</th>
+                                    <th>级别</th>
+                                    <th>电话</th>
+                                    <th>邮箱</th>
+                                    ${thActions}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.current.length ? data.current.map(m => `
+                                    <tr>
+                                        ${dept === '全体' ? '<td>' + (m.department || '-') + '</td>' : ''}
+                                        <td>${m.employee_id || '-'}</td>
+                                        <td><span class="member-name">${m.name}</span></td>
+                                        <td>${m.level || '-'}</td>
+                                        <td>${m.phone || '-'}</td>
+                                        <td>${m.email || '-'}</td>
+                                        ${showActions ? '<td><button onclick="removeMember(\'' + (m.department || dept) + '\', \'' + m.employee_id + '\', \'' + m.name + '\')" class="remove-btn">移除</button></td>' : ''}
+                                    </tr>
+                                `).join('') : '<tr><td colspan="' + colCount + '" class="empty-cell">暂无在职人员</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="detail-table-section">
+                        <div class="detail-table-header detail-table-header-joined">
+                            <svg class="detail-table-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            入职记录
+                        </div>
+                        <table class="detail-table">
+                            <thead>
+                                <tr>
+                                    <th>姓名</th>
+                                    <th>日期</th>
+                                    <th>原因</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.joined.length ? data.joined.map(r => `
+                                    <tr>
+                                        <td><span class="member-name">${r.name}</span></td>
+                                        <td>${r.date || '-'}</td>
+                                        <td>${r.reason || '-'}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="3" class="empty-cell">无入职记录</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="detail-table-section">
+                        <div class="detail-table-header detail-table-header-left">
+                            <svg class="detail-table-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            离职记录
+                        </div>
+                        <table class="detail-table">
+                            <thead>
+                                <tr>
+                                    <th>姓名</th>
+                                    <th>日期</th>
+                                    <th>原因</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.left.length ? data.left.map(r => `
+                                    <tr>
+                                        <td><span class="member-name member-name-left">${r.name}</span></td>
+                                        <td>${r.date || '-'}</td>
+                                        <td>${r.reason || '-'}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="3" class="empty-cell">无离职记录</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        });
+}
+
+function selectDeptAndLoad(dept) {
+    document.getElementById('deptSelect').value = dept;
+    loadDetailData();
+}
+
+// 初始加载汇总数据
+(function() {
+    fetch('/api/department/summary')
+    .then(r => r.json())
+    .then(data => {
+        const cards = document.getElementById('summaryCards');
+        const deptIcons = {
+            '五部': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>',
+            '六部': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>',
+            '七部': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>',
+            '八部': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>'
+        };
+        
+        cards.innerHTML = Object.entries(data).map(([dept, info]) => `
+            <div class="dept-card dept-card-${dept}" onclick="selectDeptAndLoad('${dept}')" style="cursor: pointer;">
+                <div class="dept-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        ${deptIcons[dept] || deptIcons['五部']}
+                    </svg>
+                </div>
+                <div class="dept-name">${dept}</div>
+                <div>
+                    <span class="dept-number">${info.current}</span>
+                    <span class="dept-unit">人</span>
+                </div>
+                <div class="dept-stats">
+                    <div class="dept-stat dept-stat-joined">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+                        </svg>
+                        ${info.joined_count}入职
+                    </div>
+                    <div class="dept-stat dept-stat-left">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                        </svg>
+                        ${info.left_count}离职
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    });
+})();
+
+function showAddMemberModal() {
+    var modal = document.getElementById('addMemberModal');
+    modal.style.display = 'flex';
+}
+
+function closeMemberModal() {
+    var modal = document.getElementById('addMemberModal');
+    modal.style.display = 'none';
+}
+
+function showAddRecordModal() {
+    var modal = document.getElementById('addRecordModal');
+    modal.style.display = 'flex';
+}
+
+function closeRecordModal() {
+    var modal = document.getElementById('addRecordModal');
+    modal.style.display = 'none';
+}
+
+document.getElementById('addMemberForm').onsubmit = function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const dept = form.department.value;
+    const name = form.name.value;
+    const employee_id = form.employee_id.value;
+    const level = form.level.value;
+    const phone = form.phone.value;
+    const email = form.email.value;
+    
+    fetch('/api/department/add-member', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            department: dept,
+            employee_id: employee_id,
+            name: name,
+            level: level,
+            phone: phone,
+            email: email
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            closeMemberModal();
+            form.reset();
+            loadDetailData();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    })
+    .catch(() => alert('请求失败'));
+};
+
+document.getElementById('addRecordForm').onsubmit = function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const recordType = form.type.value;
+    const dept = form.department.value;
+    const name = form.name.value;
+    const date = form.date.value;
+    const reason = form.reason.value;
+    
+    if (recordType === 'left') {
+        // 离职：添加到离职记录，并可选择从部门移除
+        fetch('/api/department/add-left', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                department: dept,
+                name: name,
+                employee_id: form.employee_id.value,
+                date: date,
+                reason: reason
+            })
+        }).then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeRecordModal();
+                form.reset();
+                loadDetailData();
+            } else {
+                alert(data.message || '操作失败');
+            }
+        })
+        .catch(() => alert('请求失败'));
+    } else {
+        // 入职：实际上就是添加人员
+        fetch('/api/department/add-member', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                department: dept,
+                employee_id: '',  // 入职可能还没工号
+                name: name,
+                level: '',
+                phone: '',
+                email: ''
+            })
+        }).then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeRecordModal();
+                form.reset();
+                loadDetailData();
+            } else {
+                alert(data.message || '操作失败');
+            }
+        })
+        .catch(() => alert('请求失败'));
+    }
+};
+
+function removeMember(dept, employee_id, name) {
+    if (!confirm(`确定要从${dept}移除成员"${name}"吗？`)) return;
+    
+    fetch('/api/department/remove-member', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            department: dept,
+            employee_id: employee_id
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            loadDetailData();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    })
+    .catch(() => alert('请求失败'));
+}
+
+function exportDepartment() {
+    const dept = document.getElementById('deptSelect').value || '全体';
+    window.location.href = '/api/department/export?department=' + encodeURIComponent(dept);
+}
+
+function importDepartment(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    if (!confirm('导入将添加到现有人员数据中（工号重复的人员会被跳过），是否继续？')) {
+        input.value = '';
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // 使用当前选择的部门
+    const dept = document.getElementById('deptSelect').value;
+    if (dept && dept !== '全体') {
+        formData.append('department', dept);
+    }
+    
+    fetch('/api/department/import', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(`导入成功！新增: ${data.result.current_imported} 人`);
+            if (data.result.errors && data.result.errors.length > 0) {
+                alert('部分行导入失败:\n' + data.result.errors.join('\n'));
+            }
+            loadDetailData();
+        } else {
+            alert('导入失败: ' + data.message);
+        }
+    })
+    .catch(err => alert('导入失败: ' + err))
+    .finally(() => {
+        input.value = '';
+    });
+}
+</script>
+
+<style>
+/* 详情页面额外样式 */
+.detail-dept-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f0f0f0;
+}
+.detail-dept-name {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1d1d1f;
+}
+.detail-dept-count {
+    background: #f5f5f7;
+    color: #86868b;
+    padding: 0.375rem 0.875rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+.detail-tables {
+    display: grid;
+    gap: 1.5rem;
+}
+.detail-table-section {
+    background: #fafafa;
+    border-radius: 16px;
+    overflow: hidden;
+}
+.detail-table-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    font-size: 1rem;
+}
+.detail-table-header-current {
+    background: linear-gradient(135deg, #0071e3 0%, #5AC8FA 100%);
+    color: white;
+}
+.detail-table-header-joined {
+    background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+    color: white;
+}
+.detail-table-header-left {
+    background: linear-gradient(135deg, #ff3b30 0%, #ff6961 100%);
+    color: white;
+}
+.detail-table-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+.detail-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.detail-table th {
+    text-align: left;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #86868b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #ffffff;
+    border-bottom: 1px solid #f0f0f0;
+}
+.detail-table td {
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid #f0f0f0;
+    color: #1d1d1f;
+}
+.detail-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.member-name {
+    font-weight: 500;
+}
+.member-name-left {
+    color: #86868b;
+}
+.remove-btn {
+    color: #ff3b30;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+.remove-btn:hover {
+    background: #fff5f5;
+}
+.empty-cell {
+    text-align: center;
+    color: #86868b;
+    padding: 2rem !important;
+}
+</style>
+{% endblock %}

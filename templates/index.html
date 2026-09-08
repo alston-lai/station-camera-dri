@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - Station & Camera DRI Management{% endblock %}
+
+{% block content %}
+<!-- 欢迎区域 -->
+<div class="welcome-section">
+    <div class="welcome-content">
+        <h1 class="welcome-title">欢迎使用 Station & Camera DRI 管理平台</h1>
+        <p class="welcome-subtitle">高效管理部门人员、追踪项目进度、收集数据</p>
+        <div class="current-time">
+            当前时间: <span id="currentTime"></span>
+        </div>
+    </div>
+    <div class="welcome-image">
+        <img src="{{ url_for('static', filename='iphone_hero.png') }}" alt="iPhone" class="hero-phone-img">
+    </div>
+</div>
+
+<!-- 导航模块 -->
+<div class="nav-modules">
+    <a href="/department" class="nav-module-card nav-module-blue">
+        <div class="nav-module-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+        </div>
+        <div class="nav-module-info">
+            <div class="nav-module-title">部门信息</div>
+            <div class="nav-module-desc">管理各部门人员、追踪入职离职</div>
+        </div>
+        <span class="nav-module-arrow">进入 →</span>
+    </a>
+    
+    <a href="/action-items" class="nav-module-card nav-module-green">
+        <div class="nav-module-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+            </svg>
+        </div>
+        <div class="nav-module-info">
+            <div class="nav-module-title">Action Items</div>
+            <div class="nav-module-desc">项目追踪管理、逾期提醒</div>
+        </div>
+        <span class="nav-module-arrow">进入 →</span>
+    </a>
+    
+    <a href="/info-list" class="nav-module-card nav-module-purple">
+        <div class="nav-module-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+        </div>
+        <div class="nav-module-info">
+            <div class="nav-module-title">信息列表</div>
+            <div class="nav-module-desc">Key-Value 信息存储</div>
+        </div>
+        <span class="nav-module-arrow">进入 →</span>
+    </a>
+    
+    <a href="/collector" class="nav-module-card nav-module-orange">
+        <div class="nav-module-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+        </div>
+        <div class="nav-module-info">
+            <div class="nav-module-title">数据收集</div>
+            <div class="nav-module-desc">创建表格、收集数据</div>
+        </div>
+        <span class="nav-module-arrow">进入 →</span>
+    </a>
+</div>
+
+<!-- 最近 Action Items -->
+<div class="recent-section">
+    <div class="section-header">
+        <h2 class="section-title">最近 Action Items</h2>
+        <a href="/action-items" class="view-all-link">查看全部 →</a>
+    </div>
+    <div class="recent-list">
+        <div id="recentActions" class="recent-empty">加载中...</div>
+    </div>
+</div>
+
+<!-- 最近信息表 -->
+<div class="recent-section">
+    <div class="section-header">
+        <h2 class="section-title">最近信息表</h2>
+        <a href="/info-list" class="view-all-link">查看全部 →</a>
+    </div>
+    <div class="recent-list">
+        <div id="recentInfo" class="recent-empty">加载中...</div>
+    </div>
+</div>
+
+<!-- 最近收集表格 -->
+<div class="recent-section">
+    <div class="section-header">
+        <h2 class="section-title">最近收集表格</h2>
+        <a href="/collector" class="view-all-link">查看全部 →</a>
+    </div>
+    <div class="recent-list">
+        <div id="recentSheets" class="recent-empty">加载中...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.welcome-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(145deg, #1d2b3f 0%, #101a28 100%);
+    border-radius: 24px;
+    padding: 3rem;
+    margin-bottom: 2rem;
+    gap: 2rem;
+    box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+.welcome-section::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    right: -10%;
+    width: 50%;
+    height: 70%;
+    background: radial-gradient(circle, rgba(58, 108, 143, 0.3) 0%, transparent 70%);
+    pointer-events: none;
+    border-radius: 50%;
+}
+.welcome-section::after {
+    content: '';
+    position: absolute;
+    bottom: -10%;
+    left: -10%;
+    width: 40%;
+    height: 50%;
+    background: radial-gradient(circle, rgba(75, 63, 107, 0.25) 0%, transparent 70%);
+    pointer-events: none;
+    border-radius: 50%;
+}
+.welcome-content {
+    flex: 1;
+    z-index: 1;
+}
+.welcome-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+}
+.welcome-subtitle {
+    font-size: 1.125rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 1rem;
+}
+.current-time {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+.welcome-image {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    z-index: 1;
+}
+.hero-phone-img {
+    height: 126px;
+    width: auto;
+    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.3));
+}
+
+/* 导航模块 */
+.nav-modules {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+.nav-module-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: white;
+    border-radius: 20px;
+    padding: 2rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    text-decoration: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.nav-module-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+.nav-module-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+    transition: transform 0.2s;
+}
+.nav-module-icon svg {
+    width: 32px;
+    height: 32px;
+    color: white;
+}
+.nav-module-card:hover .nav-module-icon {
+    transform: scale(1.05);
+}
+.nav-module-blue .nav-module-icon { background: linear-gradient(135deg, #0071E3 0%, #5856D6 100%); }
+.nav-module-green .nav-module-icon { background: linear-gradient(135deg, #34C759 0%, #30D158 100%); }
+.nav-module-purple .nav-module-icon { background: linear-gradient(135deg, #AF52DE 0%, #BF5AF2 100%); }
+.nav-module-orange .nav-module-icon { background: linear-gradient(135deg, #FF9500 0%, #FF9F0A 100%); }
+.nav-module-info {
+    flex: 1;
+}
+.nav-module-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--apple-dark, #1d1d1f);
+    margin-bottom: 0.5rem;
+}
+.nav-module-desc {
+    font-size: 0.875rem;
+    color: var(--apple-gray, #86868b);
+    line-height: 1.4;
+}
+.nav-module-arrow {
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+.nav-module-blue .nav-module-arrow { color: #0071E3; }
+.nav-module-green .nav-module-arrow { color: #34C759; }
+.nav-module-purple .nav-module-arrow { color: #AF52DE; }
+.nav-module-orange .nav-module-arrow { color: #FF9500; }
+
+/* 最近内容区域 */
+.recent-section {
+    margin-bottom: 2rem;
+}
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--apple-dark, #1d1d1f);
+    margin-bottom: 1rem;
+}
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.view-all-link {
+    font-size: 0.875rem;
+    color: #0071E3;
+    text-decoration: none;
+}
+.view-all-link:hover {
+    text-decoration: underline;
+}
+.recent-list {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.recent-empty {
+    padding: 2rem;
+    text-align: center;
+    color: var(--apple-gray, #86868b);
+}
+.recent-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #f5f5f7;
+    transition: background 0.15s;
+    text-decoration: none;
+    color: inherit;
+}
+.recent-item:last-child {
+    border-bottom: none;
+}
+.recent-item:hover {
+    background: #f5f5f7;
+}
+.recent-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+}
+.recent-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.recent-dot-green { background: #34C759; }
+.recent-dot-red { background: #FF3B30; }
+.recent-dot-gray { background: #86868b; }
+.recent-dot-blue { background: #0071E3; }
+.recent-dot-orange { background: #FF9500; }
+.recent-title {
+    font-weight: 500;
+    color: var(--apple-dark, #1d1d1f);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.recent-meta {
+    font-size: 0.8125rem;
+    color: var(--apple-gray, #86868b);
+}
+.recent-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+.status-tag {
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+.status-done { background: #d1fae5; color: #059669; }
+.status-progress { background: #dbeafe; color: #2563eb; }
+.status-cancel { background: #f3f4f6; color: #6b7280; }
+.status-active { background: #fef3c7; color: #d97706; }
+.overdue-tag {
+    font-size: 0.75rem;
+    color: #FF3B30;
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+    .nav-modules {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .welcome-section {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+@media (max-width: 640px) {
+    .nav-modules {
+        grid-template-columns: 1fr;
+    }
+    .welcome-title {
+        font-size: 1.5rem;
+    }
+    .nav-module-card {
+        padding: 1rem;
+    }
+}
+</style>
+
+<script>
+// 更新时间
+function updateTime() {
+    var now = new Date();
+    document.getElementById('currentTime').textContent = now.toLocaleString('zh-CN');
+}
+updateTime();
+setInterval(updateTime, 1000);
+
+// 加载最近数据
+Promise.all([
+    fetch('/api/action-items').then(function(r) { return r.json(); }),
+    fetch('/api/info-list').then(function(r) { return r.json(); }),
+    fetch('/api/collector').then(function(r) { return r.json(); })
+]).then(function(results) {
+    var actions = results[0];
+    var infoList = results[1];
+    var sheets = results[2];
+    
+    // 最近 Action Items
+    var recentActions = actions.slice(-5).reverse();
+    var actionsContainer = document.getElementById('recentActions');
+    if (recentActions.length === 0) {
+        actionsContainer.innerHTML = '<div class="recent-empty">暂无 Action Items</div>';
+    } else {
+        actionsContainer.innerHTML = recentActions.map(function(item) {
+            var isOverdue = item.eta && new Date(item.eta) < new Date() && item.status === '进行中';
+            var statusClass = item.status === '已完成' ? 'status-done' : 
+                             item.status === '已取消' ? 'status-cancel' : 'status-progress';
+            var dotClass = item.status === '已完成' ? 'recent-dot-green' :
+                          item.status === '已取消' ? 'recent-dot-gray' : 
+                          (isOverdue ? 'recent-dot-red' : 'recent-dot-blue');
+            return '<a href="/action-items" class="recent-item">' +
+                '<div class="recent-left">' +
+                    '<div class="recent-dot ' + dotClass + '"></div>' +
+                    '<div>' +
+                        '<div class="recent-title">' + item.title + '</div>' +
+                        '<div class="recent-meta">DRI: ' + (item.dri || '未指定') + ' · ' + (item.eta || '未设置截止日期') + '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="recent-right">' +
+                    '<span class="status-tag ' + statusClass + '">' + item.status + '</span>' +
+                    (isOverdue ? '<span class="overdue-tag">⚠️ 逾期</span>' : '') +
+                '</div>' +
+            '</a>';
+        }).join('');
+    }
+    
+    // 最近信息表
+    var recentInfo = (infoList.tables || []).slice(-5).reverse();
+    var infoContainer = document.getElementById('recentInfo');
+    if (recentInfo.length === 0) {
+        infoContainer.innerHTML = '<div class="recent-empty">暂无信息表</div>';
+    } else {
+        infoContainer.innerHTML = recentInfo.map(function(item) {
+            var rowCount = item.rows ? item.rows.length : 0;
+            return '<a href="/info-list" class="recent-item">' +
+                '<div class="recent-left">' +
+                    '<div class="recent-dot recent-dot-purple"></div>' +
+                    '<div>' +
+                        '<div class="recent-title">' + item.name + '</div>' +
+                        '<div class="recent-meta">' + rowCount + ' 条记录</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="recent-right">' +
+                    '<span class="status-tag status-active">信息表</span>' +
+                '</div>' +
+            '</a>';
+        }).join('');
+    }
+    
+    // 最近收集表格
+    var recentSheets = (sheets || []).slice(-5).reverse();
+    var sheetsContainer = document.getElementById('recentSheets');
+    if (recentSheets.length === 0) {
+        sheetsContainer.innerHTML = '<div class="recent-empty">暂无收集表格</div>';
+    } else {
+        sheetsContainer.innerHTML = recentSheets.map(function(item) {
+            var dateStr = item.created_at ? item.created_at.split('T')[0] : '未知';
+            return '<a href="/collector/' + item.id + '" class="recent-item">' +
+                '<div class="recent-left">' +
+                    '<div class="recent-dot recent-dot-orange"></div>' +
+                    '<div>' +
+                        '<div class="recent-title">' + item.name + '</div>' +
+                        '<div class="recent-meta">创建于 ' + dateStr + '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="recent-right">' +
+                    '<span class="status-tag status-progress">收集表格</span>' +
+                '</div>' +
+            '</a>';
+        }).join('');
+    }
+});
+</script>
+{% endblock %}
