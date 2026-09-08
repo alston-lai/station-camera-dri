@@ -273,7 +273,7 @@ document.getElementById('createForm').onsubmit = function(e) {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             name: form.name.value,
-            headers: form.headers.value.split(/[，,]/).map(function(h) { return h.trim(); }).filter(function(h) { return h; }),
+            headers: parseTableHeaders(form.headers.value),
             operator: 'Admin'
         })
     }).then(function() {

@@ -29,14 +29,22 @@
     <div class="card-body p-0">
         <div class="table-wrapper">
             <table class="data-table">
+                <colgroup>
+                    <col class="col-seq">
+                    <col class="col-data">
+                    <col class="col-data">
+                    <col class="col-data">
+                    <col class="col-data">
+                    <col class="col-op">
+                </colgroup>
                 <thead>
                     <tr>
-                        <th>#</th>
+                        <th class="seq-cell">序号</th>
                         <th>标题</th>
                         <th>DRI</th>
                         <th>ETA</th>
                         <th>状态</th>
-                        <th>操作</th>
+                        <th class="op-cell">操作</th>
                     </tr>
                 </thead>
                 <tbody id="actionItemsTable">
@@ -213,6 +221,42 @@
 .data-table tbody tr:last-child td {
     border-bottom: none;
 }
+/* 参照数据收集模块的表格排版优化 */
+.data-table {
+    width: 100%;
+    table-layout: fixed;                 /* 列宽由 colgroup + JS 控制 */
+}
+.data-table th,
+.data-table td {
+    vertical-align: middle;
+}
+.data-table thead th {
+    text-align: center;                  /* 表头居中 */
+}
+.data-table td.seq-cell,
+.data-table th.seq-cell,
+.data-table td.op-cell,
+.data-table th.op-cell {
+    text-align: center;                  /* 序号/操作：居中不折行 */
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.data-table td.data-cell {
+    text-align: center;                  /* 内容默认居中 */
+    vertical-align: middle;
+}
+.data-table td.data-cell.is-long {
+    text-align: left;                    /* 长文本 → 左对齐 */
+}
+.data-table .col-seq { width: 56px; }
+.data-table .col-op  { width: 120px; }
+.data-table .row-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+}
 .loading-cell {
     text-align: center;
     padding: 3rem !important;
@@ -295,32 +339,111 @@ function renderTable() {
     const tbody = document.getElementById('actionItemsTable');
     if (items.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">暂无数据</td></tr>';
+        applyActionLayout();
         return;
     }
     
-    tbody.innerHTML = items.map(item => {
+    tbody.innerHTML = items.map((item, idx) => {
         const isOverdue = item.eta && new Date(item.eta) < new Date() && item.status === '进行中';
         return `
             <tr class="${isOverdue ? 'row-overdue' : ''}">
-                <td class="text-secondary">${item.id}</td>
-                <td><span class="font-medium">${item.title}</span></td>
-                <td>${item.dri || '<span class="text-secondary">-</span>'}</td>
-                <td class="${isOverdue ? 'text-danger font-semibold' : ''}">
+                <td class="seq-cell text-secondary">${idx + 1}</td>
+                <td class="data-cell"><span class="font-medium">${item.title}</span></td>
+                <td class="data-cell">${item.dri || '<span class="text-secondary">-</span>'}</td>
+                <td class="data-cell ${isOverdue ? 'text-danger font-semibold' : ''}">
                     ${item.eta || '-'}
                     ${isOverdue ? '<span class="badge badge-danger ml-2">逾期</span>' : ''}
                 </td>
-                <td>
+                <td class="data-cell">
                     <span class="badge badge-${item.status === '已完成' ? 'success' : item.status === '已取消' ? 'secondary' : 'info'}">
                         ${item.status}
                     </span>
                 </td>
-                <td>
-                    <button onclick="showEditModal(${item.id})" class="btn-text btn-text-primary">编辑</button>
-                    <button onclick="deleteItem(${item.id})" class="btn-text btn-text-danger">删除</button>
+                <td class="op-cell">
+                    <div class="row-actions">
+                        <button onclick="showEditModal(${item.id})" class="btn-text btn-text-primary">编辑</button>
+                        <button onclick="deleteItem(${item.id})" class="btn-text btn-text-danger">删除</button>
+                    </div>
                 </td>
             </tr>
         `;
     }).join('');
+    applyActionLayout();
+}
+
+/* 表格排版：序号列最左、操作列最右、数据列按内容自适应宽度，
+   内容短则居中、长文本(需换行)左对齐（参照数据收集模块）。 */
+function applyActionLayout() {
+    const table = document.querySelector('.card .data-table');
+    if (!table) return;
+    const cg = table.querySelector('colgroup');
+    if (!cg) return;
+    const cols = cg.children;               // [seq, 数据..., op]
+    const n = cols.length;
+    const nData = n - 2;
+    const head = table.tHead ? table.tHead.rows[0].cells : [];
+    const body = table.tBodies.length ? table.tBodies[0].rows : [];
+
+    const wrap = table.closest('.table-wrapper') || table.parentElement;
+    let totalW = wrap ? wrap.clientWidth : table.offsetWidth;
+    if (!totalW) totalW = 900;
+    const seqW = 56, opW = 120;
+    const avail = Math.max(60, totalW - seqW - opW - 4);
+
+    // 数据列权重
+    const weights = [];
+    for (let d = 0; d < nData; d++) {
+        const colIdx = 1 + d;
+        let max = (head[colIdx] ? head[colIdx].innerText : '').trim().length;
+        for (let r = 0; r < body.length; r++) {
+            const cell = body[r].cells[colIdx];
+            if (!cell) continue;
+            const L = (cell.innerText || '').replace(/\s+/g, ' ').trim().length;
+            if (L > max) max = L;
+        }
+        weights.push(Math.pow(Math.max(max, 1), 0.7));
+    }
+    const sum = weights.reduce((a, b) => a + b, 0) || 1;
+    const minCol = 80;
+    const ws = [];
+    const overflow = nData * minCol >= avail;
+    if (overflow) {
+        for (let j = 0; j < nData; j++) ws.push(minCol);
+    } else {
+        let used = 0;
+        for (let j2 = 0; j2 < nData; j2++) {
+            let w = Math.max(minCol, Math.floor(avail * (weights[j2] / sum)));
+            if (j2 === nData - 1) w = Math.max(minCol, avail - used);
+            ws.push(w); used += w;
+        }
+        if (used > avail) {
+            const sc = avail / used; used = 0;
+            for (let j3 = 0; j3 < nData; j3++) {
+                ws[j3] = Math.max(minCol, Math.floor(ws[j3] * sc));
+                used += ws[j3];
+            }
+        }
+    }
+    cols[0].style.width = seqW + 'px';
+    for (let k = 0; k < nData; k++) cols[1 + k].style.width = ws[k] + 'px';
+    cols[n - 1].style.width = opW + 'px';
+    if (overflow) {
+        let s = seqW + opW;
+        for (let p = 0; p < nData; p++) s += ws[p];
+        table.style.width = s + 'px';
+    } else {
+        table.style.width = '100%';
+    }
+
+    // 内容对齐：短→居中，长(需换行)→左对齐
+    document.querySelectorAll('.card .data-table tbody tr td.data-cell').forEach(function (td) {
+        if (!(td.innerText || '').trim()) { td.classList.remove('is-long'); return; }
+        const prev = td.style.whiteSpace;
+        td.style.whiteSpace = 'nowrap';
+        const overflows = td.scrollWidth > td.clientWidth + 2;
+        td.style.whiteSpace = prev;
+        td.classList.toggle('is-long', overflows);
+    });
 }
 
 function showAddModal() {
@@ -418,6 +541,7 @@ function deleteItem(id) {
 
 // 初始加载
 loadActionItems();
+window.addEventListener('resize', applyActionLayout);
 </script>
 
 <style>

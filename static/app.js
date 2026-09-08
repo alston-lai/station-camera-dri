@@ -51,3 +51,16 @@ function formatDateTime(dateString) {
     const date = new Date(dateString);
     return date.toLocaleString('zh-CN');
 }
+
+// 通用：把用户输入的表头字符串拆分成表头数组（供各模块建表/定义表头复用）。
+// 兼容中英文逗号（英文 , 与中文 ，），统一先转成英文逗号再拆分，
+// 自动去除每个表头首尾空白，并过滤掉空项。可避免中文逗号导致的表头未分隔问题。
+function parseTableHeaders(input) {
+    if (input === undefined || input === null) return [];
+    return String(input)
+        .replace(/，/g, ',')          // 中文逗号 → 英文逗号
+        .split(',')                   // 按英文逗号拆分
+        .map(function (s) { return (s || '').trim(); })
+        .filter(function (s) { return s !== ''; });
+}
+

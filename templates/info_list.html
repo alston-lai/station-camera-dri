@@ -511,7 +511,7 @@ document.getElementById('addTableForm').onsubmit = function(e) {
     if (headers === '') {
         headers = ['Key', 'Value'];
     } else {
-        headers = headers.split(/[，,]/).map(h => h.trim()).filter(h => h !== '');
+        headers = parseTableHeaders(headers);
         if (headers.length === 0) {
             headers = ['Key', 'Value'];
         }
