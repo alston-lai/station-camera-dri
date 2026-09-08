@@ -1,0 +1,20 @@
+.git
+.gitignore
+venv
+__pycache__
+*.pyc
+*.pyo
+.DS_Store
+debug.log
+.secret_key
+
+# 本地数据库与备份不入镜像（首次运行会自动用 data/*.json 生成）
+data/app.db
+data/app.db-wal
+data/app.db-shm
+data/backups
+
+# 测试/临时
+*.png
+*.jpg
+*.xlsx

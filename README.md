@@ -116,3 +116,56 @@ python3 db_admin.py import --force
 
 也可直接用系统自带的 `sqlite3 data/app.db` 或图形工具（如 DB Browser for SQLite）打开 `data/app.db`。
 改数据前建议先 `backup`。
+
+## Docker 部署
+
+提供容器化运行所需文件：`Dockerfile`、`docker-compose.yml`、`.dockerignore`、`requirements.txt`。
+
+### 镜像内端口约定
+
+- 容器**内部**固定监听 **8000**（`EXPOSE 8000`），由 gunicorn 启动，`Dockerfile` 无需改动。
+- **宿主机**访问端口由 `docker-compose.yml` 的端口映射决定，默认 **8080**：
+  `ports: "8080:8000"`。若 8080 被占用，改左侧数字即可，例如 `"9000:8000"`。
+
+### 构建镜像
+
+```bash
+cd station-camera-dri
+docker build -t station-camera-dri:latest .
+```
+
+### 运行（推荐 docker compose）
+
+```bash
+cd station-camera-dri
+docker compose up -d --build
+```
+
+浏览器访问：`http://<服务器IP>:8080`（登录用 `data/users.json` 中的工号+姓名）。
+
+### 不使用 compose 时
+
+```bash
+docker run -d --name dri --restart unless-stopped \
+  -p 8080:8000 -v "$PWD/data:/app/data" \
+  station-camera-dri:latest
+```
+
+### 数据持久化
+
+- `data/` 目录以数据卷挂载到容器 `/app/data`：
+  - `users.json`（账号白名单，必须存在，否则无法登录）；
+  - 各业务 `*.json`（首次启动用于自动导入 SQLite）；
+  - 运行后生成的 `app.db`（SQLite 数据库）持久化在宿主机 `data/` 下，随容器重建保留。
+- `data/app.db*` 与 `data/backups/` 已在 `.gitignore` / `.dockerignore` 中排除，不会进镜像。
+
+### 常用运维命令
+
+```bash
+docker ps                      # 查看容器状态与健康
+docker compose up -d --build   # 重建并启动
+docker compose logs -f dri      # 查看实时日志
+docker compose down             # 停止并移除容器（数据卷 data/ 仍保留）
+```
+
+> 容器内也内置了后台管理脚本：`docker compose exec dri python scripts/db_admin.py tables`。

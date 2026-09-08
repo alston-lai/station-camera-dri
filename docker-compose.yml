@@ -1,0 +1,19 @@
+services:
+  dri:
+    build: .
+    image: station-camera-dri:latest
+    container_name: station-camera-dri
+    restart: unless-stopped
+    ports:
+      # 宿主机 8080 → 容器内 8000（容器内端口与宿主互不冲突，改这里即可换访问端口）
+      - "8080:8000"
+    environment:
+      # 生产保持为空；如需调试模板热重载可设 true
+      FLASK_DEBUG: ""
+      # 如需 HTTPS 会话 Cookie：设 true（需在前面配置 HTTPS）
+      SESSION_COOKIE_SECURE: "false"
+    volumes:
+      # 把宿主机 data 目录挂进去，数据库(data/app.db)与 users.json 持久化并随容器重建保留
+      - ./data:/app/data
+    working_dir: /app/scripts
+    command: gunicorn -b 0.0.0.0:8000 app:app
