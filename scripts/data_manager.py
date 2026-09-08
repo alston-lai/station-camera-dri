@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS action_items (
     dri        TEXT,
     eta        TEXT,
     status     TEXT,
+    progress   TEXT,
     operator   TEXT,
     created_at TEXT,
     updated_at TEXT
@@ -192,9 +193,9 @@ def _migrate_all():
         if isinstance(ai, dict):
             for it in ai.get('items', []):
                 c.execute(
-                    'INSERT INTO action_items(title,dri,eta,status,operator,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
+                    'INSERT INTO action_items(title,dri,eta,status,progress,operator,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)',
                     (it.get('title', ''), it.get('dri', ''), it.get('eta', ''), it.get('status', ''),
-                     it.get('operator', ''), it.get('created_at', ''), it.get('updated_at', '')))
+                     it.get('progress', ''), it.get('operator', ''), it.get('created_at', ''), it.get('updated_at', '')))
         # info_list（records 列表顺序：旧的 history 是“最新在前”，这里无需处理）
         info = _load_json_file('info_list.json')
         if isinstance(info, dict):
@@ -397,9 +398,9 @@ def get_all_action_items() -> List[Dict]:
 def add_action_item(item: Dict, ip_address: str = '') -> None:
     c = _conn()
     cur = c.execute(
-        'INSERT INTO action_items(title,dri,eta,status,operator,created_at) VALUES(?,?,?,?,?,?)',
+        'INSERT INTO action_items(title,dri,eta,status,progress,operator,created_at) VALUES(?,?,?,?,?,?,?)',
         (item.get('title', ''), item.get('dri', ''), item.get('eta', ''),
-         item.get('status', '进行中'), item.get('operator', ''), _now_minute()))
+         item.get('status', '进行中'), item.get('progress', ''), item.get('operator', ''), _now_minute()))
     item['id'] = cur.lastrowid
     item['created_at'] = _now_minute()
     c.commit()
@@ -409,7 +410,7 @@ def add_action_item(item: Dict, ip_address: str = '') -> None:
 
 def update_action_item(item_id: int, updates: Dict, ip_address: str = '') -> None:
     c = _conn()
-    fields = ['title', 'dri', 'eta', 'status', 'operator']
+    fields = ['title', 'dri', 'eta', 'status', 'progress', 'operator']
     sets = []
     vals = []
     for f in fields:
@@ -629,12 +630,22 @@ def delete_collector_sheet(sheet_id: int, operator: str = 'System',
 
 
 # ===== 初始化 =====
+def _ensure_schema_columns():
+    """对已存在的数据库执行增量列迁移（幂等）。"""
+    c = _conn()
+    cols = [r['name'] for r in c.execute('PRAGMA table_info(action_items)').fetchall()]
+    if 'progress' not in cols:
+        c.execute('ALTER TABLE action_items ADD COLUMN progress TEXT')
+    c.commit()
+
+
 def init_all_data() -> None:
-    """初始化数据库：建表并把现有 JSON 业务数据一次性导入（幂等）"""
+    """初始化数据库：建表、增量补列，并把现有 JSON 业务数据一次性导入（幂等）"""
     os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
     c = _conn()
     c.executescript(SCHEMA)
     c.commit()
+    _ensure_schema_columns()
     _migrate_all()
 
 

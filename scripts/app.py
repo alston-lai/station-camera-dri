@@ -562,6 +562,7 @@ def api_action_items_add():
         'title': data['title'],
         'dri': data.get('dri', ''),
         'eta': data.get('eta', ''),
+        'progress': data.get('progress', ''),
         'status': '进行中',
         'operator': user.get('name', user.get('employee_id', 'Unknown'))
     }, ip_address)
