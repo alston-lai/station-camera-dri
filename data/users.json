@@ -1,6 +1,8 @@
 {
   "users": [
     {"employee_id": "12214253", "name": "Alston", "can_edit_department": true, "can_edit_action_items": true, "can_edit_info_list": true},
+     {"employee_id": "12240283", "name": "Keith", "can_edit_department": false, "can_edit_action_items": false, "can_edit_info_list": true},
+      {"employee_id": "K1104CK6", "name": "Baker", "can_edit_department": false, "can_edit_action_items": false, "can_edit_info_list": true},
     {"employee_id": "75081220", "name": "陈克祥", "can_edit_department": true, "can_edit_action_items": true, "can_edit_info_list": true},
     {"employee_id": "12224366", "name": "张星", "can_edit_department": false, "can_edit_action_items": false, "can_edit_info_list": true},
     {"employee_id": "12272842", "name": "戴志强", "can_edit_department": false, "can_edit_action_items": false, "can_edit_info_list": true},
