@@ -552,10 +552,13 @@ function loadDetailData() {
                 ? data.total_count || 0 
                 : data.current.length;
             
-            // 根据权限决定是否显示操作列
+            // 根据权限决定是否显示“操作”列与“级别”列（级别较敏感，仅可编辑部门者可见）
+            const showLevel = canEditDept;
             const showActions = canEditDept;
+            const thLevel = showLevel ? '<th>级别</th>' : '';
             const thActions = showActions ? '<th>操作</th>' : '';
-            const colCount = dept === '全体' ? (showActions ? '7' : '6') : (showActions ? '6' : '5');
+            // 列数 = (全体时加部门列) + 工号姓名电话邮箱(4列) + 级别 + 操作
+            const colCount = (dept === '全体' ? 1 : 0) + 4 + (showLevel ? 1 : 0) + (showActions ? 1 : 0);
             
             table.innerHTML = `
                 <div class="detail-dept-header">
@@ -577,7 +580,7 @@ function loadDetailData() {
                                     ${dept === '全体' ? '<th>部门</th>' : ''}
                                     <th>工号</th>
                                     <th>姓名</th>
-                                    <th>级别</th>
+                                    ${thLevel}
                                     <th>电话</th>
                                     <th>邮箱</th>
                                     ${thActions}
@@ -589,7 +592,7 @@ function loadDetailData() {
                                         ${dept === '全体' ? '<td>' + (m.department || '-') + '</td>' : ''}
                                         <td>${m.employee_id || '-'}</td>
                                         <td><span class="member-name">${m.name}</span></td>
-                                        <td>${m.level || '-'}</td>
+                                        ${showLevel ? `<td>${m.level || '-'}</td>` : ''}
                                         <td>${m.phone || '-'}</td>
                                         <td>${m.email || '-'}</td>
                                         ${showActions ? '<td><button onclick="removeMember(\'' + (m.department || dept) + '\', \'' + m.employee_id + '\', \'' + m.name + '\')" class="remove-btn">移除</button></td>' : ''}
@@ -958,6 +961,7 @@ function importDepartment(input) {
     letter-spacing: 0.05em;
     background: #ffffff;
     border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap;   /* 表头不换行 */
 }
 .detail-table td {
     padding: 0.875rem 1.25rem;

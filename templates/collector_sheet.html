@@ -46,16 +46,20 @@
         overflow-x: auto; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
     .data-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    /* 数据内容单元格字号：默认继承 body(16px) 偏大，显式设为 13px。
+       表头由下方 .data-table thead th 单独设为 13px。 */
+    .data-table td { font-size: 13px; }
     .data-table th, .data-table td {
         padding: 10px 12px; text-align: left; vertical-align: middle;
         border-bottom: 1px solid #ededf0; border-right: 1px solid #f0f0f2;
-        overflow-wrap: anywhere; word-break: break-word;
+        overflow-wrap: break-word; word-break: normal;   /* 空格处换行，不硬拆单词 */
     }
     .data-table tr > th:last-child, .data-table tr > td:last-child { border-right: none; }
     .data-table thead th {
         position: sticky; top: 0; background: #f5f5f7; z-index: 2;
         font-size: 13px; font-weight: 600; color: #6e6e73;
         text-align: center; vertical-align: middle;   /* 表头上下左右居中 */
+        white-space: nowrap;                          /* 表头不换行 */
         border-bottom: 1px solid #d2d2d7;
     }
     .data-table tbody tr:hover td { background: #fafafc; }
@@ -254,6 +258,47 @@ document.getElementById('rowForm').onsubmit = function (e) {
         .catch(() => alert('请求失败'));
 };
 
+/* ---------- 排版工具：估算文本单行像素宽度（保证表头不换行时放得下） ---------- */
+var _ctx = null;
+function measureTextWidth(txt) {
+    if (!_ctx) {
+        var cv = document.createElement('canvas');
+        _ctx = cv.getContext('2d');
+    }
+    _ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    return _ctx.measureText(txt || '').width;
+}
+
+/* ---------- 内容分类：决定每个单元格如何换行 / 列是否应更宽 ---------- */
+
+// 表头是否属于“radar”类
+function isRadarHeader(h) { return (h || '').toLowerCase().indexOf('radar') !== -1; }
+
+// 内容看起来像日期/时间（含日期范围、带时间等）→ 需要单行不换行
+function looksLikeDate(s) {
+    s = (s || '').trim();
+    if (!s) return false;
+    // 除时间 AM/PM 外不允许再出现其它英文字母
+    if (/[a-zA-Z]/.test(s.replace(/am|pm|AM|PM/g, ''))) return false;
+    var hasDate = /(\d{4}\s*[-/.]\s*\d{1,2}\s*[-/.]\s*\d{1,2})|(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日?)|(\d{1,2}\s*[-/.]\s*\d{1,2})|(\d{1,2}\s*月\s*\d{1,2}\s*日?)/.test(s);
+    if (!hasDate) return false;
+    // 只允许数字、空格、日期/时间分隔符与范围箭头等字符
+    if (/[^\d\s\-/.:年月日～~()]/.test(s)) return false;
+    return true;
+}
+
+// 该单元格是否需要“禁止换行、单行展示”：
+//  1) 是日期 → 不换行；
+//  2) radar 列中，内容没有逗号（中英文）或空格 → 不换行（整体当做一个单词/编号）。
+//  否则允许在空格处正常换行（不拆单词）。
+function cellNeedsNoWrap(txt, header) {
+    var t = (txt || '').trim();
+    if (!t) return false;
+    if (looksLikeDate(t)) return true;
+    if (isRadarHeader(header) && !/[，, ]/.test(t)) return true;
+    return false;
+}
+
 /* ---------- 勾选框列（仅批量删除模式存在） ---------- */
 function isBatchMode() { return !!document.getElementById('colgroup').querySelector('.col-checkbox'); }
 
@@ -303,63 +348,85 @@ function layoutColumns() {
     if (!totalW) totalW = 900;
     var avail = Math.max(60, totalW - seqW - opW - checkboxW - 4);
 
-    // 按 class 定位每个数据列，取出它的列序号（= 单元格序号），统计文本长度
-    var dataMeta = [];
+    // 列宽策略：按“内容长短”分配宽度——文字多/内容长的列明显更宽，文字少/内容短的列尽量收窄；
+    // 同时保证表头单行不换行（每列最小宽度 = 表头文本实测单行宽度 + 内边距）。
     var headCells = table.tHead ? table.tHead.rows[0].cells : [];
     var bodyRows = table.tBodies.length ? table.tBodies[0].rows : [];
+    // ---- 先逐列测量内容，决定“这列希望多宽” ----
+    // 目标：
+    //   短内容列   → 只要放得下(表头 + 最长英文/数字单词 + 不换行的日期/编号)，保持窄；
+    //   长内容列   → 宽度约 = 最长单元格单行宽度的一半(≈ 2 行展示)，避免又窄又高的难看排版。
+    //   任何列都 ≥ 最长英文单词宽度 → 换行只在空格处发生，不会在单词中间断行。
+    var dataCols = [];            // 每列: { idx, base, weight, desired }
     for (var c = 0; c < cols.length; c++) {
         if (!cols[c].classList.contains('col-data')) continue;
-        var cellIdx = c; // col 元素顺序与单元格顺序一一对应
+        var cellIdx = c;          // col 元素顺序与单元格顺序一一对应
         var hname = (headCells[cellIdx] ? headCells[cellIdx].innerText : '').trim();
+        var base = Math.max(56, Math.round(measureTextWidth(hname)) + 24); // 至少放下表头
+        var wrapFullMax = 0;      // 需换行内容里最长单元格的“单行”像素宽
         var maxLen = hname.length;
         for (var r = 0; r < bodyRows.length; r++) {
             var tr = bodyRows[r];
             if (tr.classList.contains('empty-row')) continue;
             var cell = tr.cells[cellIdx];
             if (!cell) continue;
-            var L = cell.innerText.replace(/\s+/g, ' ').trim().length;
-            if (L > maxLen) maxLen = L;
+            var txt = cell.innerText.replace(/\s+/g, ' ').trim();
+            if (!txt) continue;
+            if (txt.length > maxLen) maxLen = txt.length;
+            var fullW = Math.round(measureTextWidth(txt)) + 24;   // 整格单行像素宽
+            if (cellNeedsNoWrap(txt, hname)) {
+                // 日期 / 无分隔符编号等：必须单行，给出足够宽度
+                if (fullW > base) base = fullW;
+            } else {
+                // 会换行的内容：记录单行总宽(用于“约两行”)，并预留最长单词宽，避免单词中间断行
+                if (fullW > wrapFullMax) wrapFullMax = fullW;
+                var words = txt.split(/\s+/);
+                for (var w = 0; w < words.length; w++) {
+                    if (/[A-Za-z0-9]/.test(words[w])) {   // 英文/数字等不宜拆断的单词
+                        var ww = Math.round(measureTextWidth(words[w])) + 24;
+                        if (ww > base) base = ww;
+                    }
+                }
+            }
         }
-        // 开方压缩：长文本列获得更多宽度，但不会无限拉宽
-        dataMeta.push({ name: hname, w: Math.pow(Math.max(maxLen, 1), 0.72) });
+        // 长内容列的“希望宽度”≈ 单行的一半(两行即可)，上限 640 避免无限拉宽
+        var desired = base;
+        if (wrapFullMax > base) desired = Math.max(base, Math.min(640, Math.round(wrapFullMax / 2)));
+        // 用于“放得下”场景按内容分配剩余宽度
+        var weight = Math.pow(Math.min(maxLen, 160), 0.6);
+        dataCols.push({ idx: cellIdx, base: base, desired: desired, weight: weight });
     }
 
-    var nData = dataMeta.length || 1;
-    var sumW = dataMeta.reduce(function (a, x) { return a + x.w; }, 0);
-    var minCol = 90;
-    var widthFor = [];
-    var overflowMode = false;
+    var nData = dataCols.length || 1;
+    var widthFor = {};            // idx -> px
+    var usedW = 0;
+    var sumBase = dataCols.reduce(function (a, x) { return a + x.base; }, 0);
+    var overflowMode = sumBase >= avail;
 
-    if (nData * minCol >= avail) {
-        // 列太多：每列保底宽度，表格加宽以启用外层横向滚动
-        overflowMode = true;
-        for (var j = 0; j < nData; j++) widthFor.push(minCol);
+    if (overflowMode) {
+        // 各列连“最小宽度”加起来都放不下(列很多)：按“约 2 行”的希望宽度给列，
+        // 内容多的列变宽、短的保持窄，表格整体加宽以横向滚动（表头仍单行）。
+        for (var j = 0; j < nData; j++) widthFor[dataCols[j].idx] = dataCols[j].desired;
     } else {
-        var used = 0;
+        // 放得下：各列先给最小宽，再把剩余空间按内容权重分给列，占满整行(不横向滚动)
+        var leftover = avail - sumBase;
+        var sumW = dataCols.reduce(function (a, x) { return a + x.weight; }, 0) || 1;
         for (var j2 = 0; j2 < nData; j2++) {
-            var ww = Math.max(minCol, Math.floor(avail * (dataMeta[j2].w / sumW)));
-            if (j2 === nData - 1) ww = Math.max(minCol, avail - used); // 最后一列吸收取整误差
-            widthFor.push(ww);
-            used += ww;
-        }
-        if (used > avail) {
-            var scale = avail / used;
-            used = 0;
-            for (var j3 = 0; j3 < nData; j3++) {
-                widthFor[j3] = Math.max(minCol, Math.floor(widthFor[j3] * scale));
-                used += widthFor[j3];
-            }
+            var extra = Math.floor(leftover * (dataCols[j2].weight / sumW));
+            var ww = dataCols[j2].base + extra;
+            if (j2 === nData - 1) ww = Math.max(dataCols[j2].base, avail - usedW); // 末列吸收取整误差
+            widthFor[dataCols[j2].idx] = ww;
+            usedW += ww;
         }
     }
 
     // 依次把宽度写回 colgroup
-    var di = 0;
     for (var c2 = 0; c2 < cols.length; c2++) {
         var cls = cols[c2].classList;
         if (cls.contains('col-checkbox')) cols[c2].style.width = (isBatch ? 48 : 0) + 'px';
         else if (cls.contains('col-seq')) cols[c2].style.width = seqW + 'px';
         else if (cls.contains('col-op')) cols[c2].style.width = opW + 'px';
-        else if (cls.contains('col-data')) { cols[c2].style.width = widthFor[di] + 'px'; di++; }
+        else if (cls.contains('col-data')) cols[c2].style.width = widthFor[c2] + 'px';
     }
 
     // 空态单元格 colspan 跟随实际列数
@@ -385,16 +452,24 @@ function layoutColumns() {
 function alignDataCells() {
     var table = document.getElementById('dataTable');
     if (!table) return;
+    var head = table.tHead ? table.tHead.rows[0].cells : [];
     var dataCells = table.querySelectorAll('tbody tr:not(.empty-row) td.data-cell');
     dataCells.forEach(function (td) {
-        if (!(td.innerText || '').trim()) {
-            td.classList.remove('is-long');  // 空内容保持居中
-            return;
-        }
+        var txt = (td.innerText || '').replace(/\s+/g, ' ').trim();
+        var hname = (head[td.cellIndex] ? head[td.cellIndex].innerText : '').trim();
+        // 换行方式：
+        //  - 日期 / 无分隔符(无逗号、空格)的 radar 编号 → nowrap 单行；
+        //  - 其余 → 允许在空格/标点处换行，但不在单词中间硬断。
+        var ws = cellNeedsNoWrap(txt, hname) ? 'nowrap' : 'normal';
+        td.style.whiteSpace = ws;
+        td.style.wordBreak = 'normal';
+        td.style.overflowWrap = 'break-word';
+        if (!txt) { td.classList.remove('is-long'); return; }   // 空内容保持居中
+        // 判断是否需要左对齐：临时禁止换行实测是否超出格子
         var prevWS = td.style.whiteSpace;
-        td.style.whiteSpace = 'nowrap';     // 临时禁止换行，实测是否超出格子
+        td.style.whiteSpace = 'nowrap';
         var overflows = td.scrollWidth > td.clientWidth + 2;
-        td.style.whiteSpace = prevWS;       // 恢复
+        td.style.whiteSpace = prevWS;
         td.classList.toggle('is-long', overflows);
     });
 }
