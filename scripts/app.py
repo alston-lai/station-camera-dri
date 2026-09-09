@@ -12,6 +12,7 @@ import threading
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for
+from markupsafe import escape, Markup
 
 from data_manager import (
     init_all_data,
@@ -87,6 +88,17 @@ app.config['SESSION_COOKIE_SECURE'] = _env_bool('SESSION_COOKIE_SECURE', False)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
 # 限制上传体积，防止超大文件拖垮服务（Excel/CSV 导入）
 app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
+
+
+def nl2br(value):
+    """把文本中的换行符转成 <br>，同时转义 HTML，供表格单元格保留换行显示。"""
+    if value is None:
+        return ''
+    text = str(value).replace('\r\n', '\n').replace('\r', '\n')
+    return Markup(str(escape(text)).replace('\n', '<br>'))
+
+
+app.jinja_env.filters['nl2br'] = nl2br
 
 DEPARTMENTS = ['五部', '六部', '七部', '八部']
 

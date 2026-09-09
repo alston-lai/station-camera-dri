@@ -120,6 +120,10 @@
         border-radius: 8px; font-size: 14px; box-sizing: border-box; color: #1d1d1f;
     }
     .form-input:focus { outline: none; border-color: #0071E3; }
+    /* 文本域：高度随内容自动增减，便于输入/展示换行内容 */
+    .form-input.form-textarea {
+        resize: none; overflow: hidden; line-height: 1.5; min-height: 38px;
+    }
     .form-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; }
 </style>
 
@@ -167,7 +171,7 @@
             <tr>
                 <td class="seq-cell">{{ loop.index }}</td>
                 {% for header in sheet.headers %}
-                <td class="data-cell">{{ row.get(header, row.get(header.lower(), '')) }}</td>
+                <td class="data-cell">{{ row.get(header, row.get(header.lower(), '')) | nl2br }}</td>
                 {% endfor %}
                 <td class="op-cell"><button type="button" class="action-btn" onclick="editRow({{ loop.index0 }})">编辑</button></td>
             </tr>
@@ -187,7 +191,7 @@
             {% for header in sheet.headers %}
             <div class="form-group">
                 <label class="form-label">{{ header }}</label>
-                <input type="text" name="{{ header.lower() }}" class="form-input">
+                <textarea rows="1" name="{{ header.lower() }}" class="form-input form-textarea"></textarea>
             </div>
             {% endfor %}
             <div class="form-actions">
@@ -203,6 +207,18 @@
 <script>
 let currentRowIndex = -1;
 
+/* 文本域高度随内容自动增减（支持换行输入） */
+function autoGrow(el) {
+    el.style.height = 'auto';
+    el.style.height = (el.scrollHeight + 2) + 'px';
+}
+function autoGrowRowForm() {
+    document.querySelectorAll('#rowForm textarea.form-textarea').forEach(autoGrow);
+}
+document.addEventListener('input', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('form-textarea')) autoGrow(e.target);
+});
+
 /* ---------- 添加 / 编辑 行 ---------- */
 function showAddRowModal() {
     currentRowIndex = -1;
@@ -210,6 +226,7 @@ function showAddRowModal() {
     document.getElementById('rowForm').reset();
     document.getElementById('rowForm').rowIndex.value = '-1';
     document.getElementById('rowModal').classList.add('show');
+    autoGrowRowForm();
 }
 
 // 兼容不同大小写存储的取值（部分旧数据 key 可能是大写）
@@ -232,6 +249,7 @@ function editRow(index) {
     {% for header in sheet.headers %}
     form['{{ header.lower() }}'].value = cellValue(row, '{{ header.lower() }}');
     {% endfor %}
+    autoGrowRowForm();
     document.getElementById('rowModal').classList.add('show');
 }
 

@@ -449,7 +449,7 @@ function renderTables() {
                             <tbody>
                                 ${rows.map((row, idx) => `
                                     <tr>
-                                        ${headers.map(h => `<td>${escapeHtml(row[h] || '-')}</td>`).join('')}
+                                        ${headers.map(h => `<td>${cellHtml(row[h])}</td>`).join('')}
                                         <td class="col-actions">
                                             <div class="row-actions">
                                                 <button onclick="showEditRowModal(${table.id}, ${idx})">编辑</button>
@@ -576,10 +576,11 @@ function showAddRowModal(tableId) {
     fieldsContainer.innerHTML = headers.map(h => `
         <div class="form-group">
             <label class="form-label">${escapeHtml(h)}</label>
-            <input type="text" name="col_${escapeAttr(h)}" class="form-input" placeholder="输入 ${escapeHtml(h)}">
+            <textarea rows="1" name="col_${escapeAttr(h)}" class="form-input form-textarea" placeholder="输入 ${escapeHtml(h)}"></textarea>
         </div>
     `).join('');
-    
+    growTextareas(fieldsContainer);
+
     document.getElementById('addRowModal').classList.remove('hidden');
     document.getElementById('addRowModal').classList.add('flex');
 }
@@ -637,10 +638,11 @@ function showEditRowModal(tableId, rowIndex) {
     fieldsContainer.innerHTML = headers.map(h => `
         <div class="form-group">
             <label class="form-label">${escapeHtml(h)}</label>
-            <input type="text" name="col_${escapeAttr(h)}" class="form-input" value="${escapeAttr(row[h] || '')}">
+            <textarea rows="1" name="col_${escapeAttr(h)}" class="form-input form-textarea">${escapeHtml(row[h] || '')}</textarea>
         </div>
     `).join('');
-    
+    growTextareas(fieldsContainer);
+
     document.getElementById('editRowModal').classList.remove('hidden');
     document.getElementById('editRowModal').classList.add('flex');
 }
@@ -710,6 +712,25 @@ function escapeAttr(text) {
     if (!text) return '';
     return text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+// 单元格显示内容：转义后把换行符转成 <br>，保留换行呈现；空值显示 '-'
+function cellHtml(value) {
+    const s = (value == null || value === '') ? '-' : String(value);
+    return escapeHtml(s).replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
+}
+
+// 文本域高度随内容自动增减（支持多行输入/展示换行）
+function autoGrow(el) {
+    el.style.height = 'auto';
+    el.style.height = (el.scrollHeight + 2) + 'px';
+}
+function growTextareas(root) {
+    (root || document).querySelectorAll('textarea.form-textarea').forEach(autoGrow);
+}
+document.addEventListener('input', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('form-textarea')) autoGrow(e.target);
+});
+
+
 
 // 初始化
 loadInfoTables();

@@ -341,6 +341,15 @@ body {
     color: var(--apple-gray);
 }
 
+/* 用于支持多行内容输入的表单文本域：高度随内容自动增减 */
+.form-input.form-textarea {
+    resize: none;
+    overflow: hidden;
+    line-height: 1.5;
+    min-height: 38px;
+    font-family: inherit;
+}
+
 /* Table Styles */
 .data-table {
     width: 100%;
