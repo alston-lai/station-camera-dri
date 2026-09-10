@@ -27,17 +27,18 @@
             <button onclick="loadDetailData()" class="action-btn action-btn-secondary">
                 查看详情
             </button>
+            {% if can_edit %}
             <button onclick="showAddMemberModal()" class="action-btn action-btn-success">
                 <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                 </svg>
-                添加人员
+                入职
             </button>
             <button onclick="showAddRecordModal()" class="action-btn action-btn-primary">
                 <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                 </svg>
-                添加变动
+                离职
             </button>
             <button onclick="exportDepartment()" class="action-btn action-btn-secondary">
                 <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,6 +53,7 @@
                 导入
                 <input type="file" id="importFile" accept=".xlsx,.xls" style="display: none;" onchange="importDepartment(this)">
             </label>
+            {% endif %}
         </div>
     </div>
     
@@ -65,11 +67,11 @@
     </div>
 </div>
 
-<!-- 添加人员 Modal -->
+<!-- 入职 Modal -->
 <div id="addMemberModal" class="modal-overlay" style="display:none;">
     <div class="modal-card">
         <div class="modal-header">
-            <h3 class="modal-title">添加部门成员</h3>
+            <h3 class="modal-title">入职</h3>
             <button onclick="closeMemberModal()" class="modal-close">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -78,7 +80,7 @@
         </div>
         <form id="addMemberForm" class="modal-form">
             <div class="form-group">
-                <label class="form-label">部门</label>
+                <label class="form-label">入职部门</label>
                 <select name="department" required class="form-select">
                     {% for dept in departments %}
                     <option value="{{ dept }}">{{ dept }}</option>
@@ -86,8 +88,102 @@
                 </select>
             </div>
             <div class="form-group">
+                <label class="form-label">入职日期</label>
+                <input type="date" name="date" required class="form-input" id="joinDateInput">
+            </div>
+            <div class="form-group">
+                <label class="form-label">姓名</label>
+                <input type="text" name="name" required class="form-input" placeholder="请输入姓名">
+            </div>
+            <div class="form-group">
                 <label class="form-label">工号</label>
                 <input type="text" name="employee_id" required class="form-input" placeholder="请输入工号">
+            </div>
+            <div class="form-group">
+                <label class="form-label">级别</label>
+                <input type="text" name="level" class="form-input" placeholder="请输入级别">
+            </div>
+            <div class="form-group">
+                <label class="form-label">电话</label>
+                <input type="text" name="phone" class="form-input" placeholder="请输入电话">
+            </div>
+            <div class="form-group">
+                <label class="form-label">邮箱</label>
+                <input type="email" name="email" class="form-input" placeholder="请输入邮箱">
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeMemberModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">确认入职</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 离职 Modal -->
+<div id="addRecordModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title">离职</h3>
+            <button onclick="closeRecordModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="addRecordForm" class="modal-form">
+            <div class="form-group">
+                <label class="form-label">部门</label>
+                <select name="department" required class="form-select" id="leftDeptSelect">
+                    {% for dept in departments %}
+                    <option value="{{ dept }}">{{ dept }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">姓名</label>
+                <input type="text" name="name" required class="form-input" placeholder="请输入离职人员姓名">
+            </div>
+            <div class="form-group">
+                <label class="form-label">工号 <span style="color:#86868b;font-weight:400;">（用于自动从在职列表移除）</span></label>
+                <input type="text" name="employee_id" class="form-input" placeholder="有多个同名人员时请填写工号">
+            </div>
+            <div class="form-group">
+                <label class="form-label">离职日期</label>
+                <input type="date" name="date" required class="form-input" id="leftDateInput">
+            </div>
+            <div class="form-group">
+                <label class="form-label">离职原因</label>
+                <input type="text" name="reason" class="form-input" placeholder="请输入离职原因">
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeRecordModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">确认离职</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 编辑在职人员 Modal -->
+<div id="editMemberModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title">编辑在职人员</h3>
+            <button onclick="closeEditModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="editMemberForm" class="modal-form">
+            <input type="hidden" name="department">
+            <input type="hidden" name="employee_id">
+            <div class="form-group">
+                <label class="form-label">部门</label>
+                <input type="text" class="form-input" id="editDeptDisplay" disabled>
+            </div>
+            <div class="form-group">
+                <label class="form-label">工号</label>
+                <input type="text" class="form-input" id="editEmpDisplay" disabled>
             </div>
             <div class="form-group">
                 <label class="form-label">姓名</label>
@@ -106,61 +202,32 @@
                 <input type="email" name="email" class="form-input" placeholder="请输入邮箱">
             </div>
             <div class="modal-footer">
-                <button type="button" onclick="closeMemberModal()" class="modal-btn modal-btn-cancel">取消</button>
-                <button type="submit" class="modal-btn modal-btn-primary">添加</button>
+                <button type="button" onclick="closeEditModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">保存修改</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- 添加变动 Modal -->
-<div id="addRecordModal" class="modal-overlay" style="display:none;">
-    <div class="modal-card">
+<!-- 入职/离职记录管理 Modal -->
+<div id="recordManagerModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width:760px;">
         <div class="modal-header">
-            <h3 class="modal-title">添加人员变动</h3>
-            <button onclick="closeRecordModal()" class="modal-close">
+            <h3 class="modal-title" id="recordManagerTitle">记录管理</h3>
+            <button onclick="closeRecordManagerModal()" class="modal-close">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
             </button>
         </div>
-        <form id="addRecordForm" class="modal-form">
-            <div class="form-group">
-                <label class="form-label">变动类型</label>
-                <select name="type" required class="form-select">
-                    <option value="joined">入职</option>
-                    <option value="left">离职</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">部门</label>
-                <select name="department" required class="form-select">
-                    {% for dept in departments %}
-                    <option value="{{ dept }}">{{ dept }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">姓名</label>
-                <input type="text" name="name" required class="form-input" placeholder="请输入姓名">
-            </div>
-            <div class="form-group">
-                <label class="form-label">工号</label>
-                <input type="text" name="employee_id" class="form-input" placeholder="离职时填写以自动从部门移除">
-            </div>
-            <div class="form-group">
-                <label class="form-label">日期</label>
-                <input type="date" name="date" required class="form-input">
-            </div>
-            <div class="form-group">
-                <label class="form-label">变动原因</label>
-                <input type="text" name="reason" class="form-input" placeholder="离职必填">
-            </div>
-            <div class="modal-footer">
-                <button type="button" onclick="closeRecordModal()" class="modal-btn modal-btn-cancel">取消</button>
-                <button type="submit" class="modal-btn modal-btn-primary">添加</button>
-            </div>
-        </form>
+        <div class="record-mgr-search" id="recordMgrSearchWrap">
+            <input type="text" id="recordMgrSearch" class="form-input"
+                   placeholder="搜索：姓名 / 工号 / 部门 / 日期 / 电话 / 邮箱 / 原因…"
+                   oninput="onManagerSearch(this.value)">
+        </div>
+        <div class="record-mgr-body" id="recordManagerBody">
+            <!-- 由 JS 动态渲染：列表视图 / 编辑视图 -->
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -191,21 +258,31 @@
 .dept-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
+    gap: 1.25rem;
     margin-bottom: 3rem;
 }
 
-/* 部门卡片 */
+/* 部门卡片 —— 各部门独立配色（柔和底色 + 顶部渐变条 + 图标） */
 .dept-card {
-    background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
-    border-radius: 24px;
-    padding: 2rem;
+    --d1: #0071e3;
+    --d2: #5AC8FA;
+    --tint: rgba(0, 113, 227, 0.08);
     position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
-    border: 1px solid rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.6rem 1.5rem 1.35rem;
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at 100% 0%, var(--tint) 0%, transparent 52%),
+        linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, #ffffff 60%);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 10px 28px -18px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    transition: transform 0.28s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.28s ease;
 }
+/* 顶部渐变装饰条 */
 .dept-card::before {
     content: '';
     position: absolute;
@@ -213,78 +290,129 @@
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, var(--dept-color-1), var(--dept-color-2));
+    background: linear-gradient(90deg, var(--d1) 0%, var(--d2) 100%);
+    border-radius: 22px 22px 0 0;
 }
 .dept-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    transform: translateY(-5px);
+    box-shadow: 0 22px 44px -18px rgba(0, 0, 0, 0.28);
+    border-color: transparent;
 }
-.dept-card-5部 { --dept-color-1: #FF6B6B; --dept-color-2: #FF8E8E; }
-.dept-card-六部 { --dept-color-1: #4ECDC4; --dept-color-2: #7EDDD6; }
-.dept-card-七部 { --dept-color-1: #45B7D1; --dept-color-2: #7DCDE0; }
-.dept-card-八部 { --dept-color-1: #96CEB4; --dept-color-2: #B5DFC8; }
+.dept-card:hover::before { height: 5px; }
 
+/* 各部门配色 */
+.dept-card-五部 { --d1: #FF6B6B; --d2: #FF9A8B; --tint: rgba(255, 107, 107, 0.10); }
+.dept-card-六部 { --d1: #10B7A5; --d2: #53E0C8; --tint: rgba(16, 183, 165, 0.10); }
+.dept-card-七部 { --d1: #3B82F6; --d2: #77B7FF; --tint: rgba(59, 130, 246, 0.10); }
+.dept-card-八部 { --d1: #32B672; --d2: #82E0A6; --tint: rgba(50, 182, 114, 0.10); }
+
+/* 顶部：图标 + 部门徽章 */
+.dept-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
 .dept-icon {
-    width: 56px;
-    height: 56px;
+    width: 54px;
+    height: 54px;
     border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 1.25rem;
-    background: linear-gradient(135deg, var(--dept-color-1) 0%, var(--dept-color-2) 100%);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: linear-gradient(135deg, var(--d1) 0%, var(--d2) 100%);
+    box-shadow: 0 8px 18px -6px var(--d1);
 }
 .dept-icon svg {
-    width: 28px;
-    height: 28px;
-    color: rgba(0, 0, 0, 0.6);
+    width: 26px;
+    height: 26px;
+    color: #ffffff;
 }
-.dept-name {
-    font-size: 0.875rem;
-    color: #86868b;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+.dept-tag {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1d1d1f;
+    letter-spacing: 0.04em;
+    padding: 0.3rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.035);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* 中间：人数 */
+.dept-count {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.6rem;
+    padding-top: 0.15rem;
 }
 .dept-number {
-    font-size: 3.5rem;
-    font-weight: 600;
+    font-size: 3rem;
+    font-weight: 700;
     color: #1d1d1f;
     line-height: 1;
-    margin-bottom: 0.75rem;
     letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
 }
 .dept-unit {
-    font-size: 1.25rem;
+    font-size: 1.15rem;
     color: #86868b;
-    font-weight: 400;
-    margin-left: 0.25rem;
+    font-weight: 500;
+    padding-bottom: 0.15rem;
 }
-.dept-stats {
+.dept-count-label {
+    margin-left: auto;
+    font-size: 0.78rem;
+    color: #86868b;
+    background: rgba(0, 0, 0, 0.04);
+    padding: 0.3rem 0.6rem;
+    border-radius: 8px;
+    white-space: nowrap;
+    align-self: flex-end;
+}
+
+/* 底部统计：本月离职 / 累计离职 */
+.dept-foot {
     display: flex;
-    gap: 1rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid #f0f0f0;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
+    padding-top: 0.85rem;
+    border-top: 1px dashed #e9e9ee;
 }
-.dept-stat {
+.foot-item {
+    flex: 1;
     display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-size: 0.875rem;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.55rem 0.6rem;
+    border-radius: 10px;
+    background: rgba(255, 59, 48, 0.06);
 }
-.dept-stat-joined {
-    color: #34c759;
+.foot-item + .foot-item {
+    background: rgba(0, 0, 0, 0.035);
 }
-.dept-stat-left {
-    color: #ff3b30;
+.foot-label {
+    font-size: 0.72rem;
+    color: #8a8a92;
+    letter-spacing: 0.02em;
 }
-.dept-stat svg {
-    width: 14px;
-    height: 14px;
+.foot-val {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #d9342b;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
 }
+.foot-item + .foot-item .foot-val {
+    color: #6e6e73;
+}
+.foot-val small {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #a0a0a6;
+    margin-left: 0.15rem;
+}
+
+
 
 /* 详情区域 */
 .detail-section {
@@ -529,7 +657,8 @@
 // 从模板传入的权限变量
 const canEditDept = {{ 'true' if can_edit else 'false' }};
 
-
+// 缓存最近一次详情数据，供“编辑”弹窗回填
+let lastDetailData = null;
 
 
 function loadDetailData() {
@@ -552,13 +681,12 @@ function loadDetailData() {
                 ? data.total_count || 0 
                 : data.current.length;
             
-            // 根据权限决定是否显示“操作”列与“级别”列（级别较敏感，仅可编辑部门者可见）
+            // 根据权限决定是否显示“级别”列（级别较敏感，仅可编辑部门者可见）
             const showLevel = canEditDept;
-            const showActions = canEditDept;
             const thLevel = showLevel ? '<th>级别</th>' : '';
-            const thActions = showActions ? '<th>操作</th>' : '';
-            // 列数 = (全体时加部门列) + 工号姓名电话邮箱(4列) + 级别 + 操作
-            const colCount = (dept === '全体' ? 1 : 0) + 4 + (showLevel ? 1 : 0) + (showActions ? 1 : 0);
+            // 列数 = (全体时加部门列) + 工号姓名电话邮箱(4列) + 级别
+            const colCount = (dept === '全体' ? 1 : 0) + 4 + (showLevel ? 1 : 0);
+            lastDetailData = data;
             
             table.innerHTML = `
                 <div class="detail-dept-header">
@@ -569,10 +697,13 @@ function loadDetailData() {
                 <div class="detail-tables">
                     <div class="detail-table-section">
                         <div class="detail-table-header detail-table-header-current">
-                            <svg class="detail-table-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            在职人员
+                            <span class="detail-head-label">
+                                <svg class="detail-table-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                在职人员
+                            </span>
+                            ${canEditDept ? '<button type="button" class="record-mgr-btn" onclick="openCurrentManager()">＋ 管理</button>' : ''}
                         </div>
                         <table class="detail-table">
                             <thead>
@@ -583,7 +714,6 @@ function loadDetailData() {
                                     ${thLevel}
                                     <th>电话</th>
                                     <th>邮箱</th>
-                                    ${thActions}
                                 </tr>
                             </thead>
                             <tbody>
@@ -595,7 +725,6 @@ function loadDetailData() {
                                         ${showLevel ? `<td>${m.level || '-'}</td>` : ''}
                                         <td>${m.phone || '-'}</td>
                                         <td>${m.email || '-'}</td>
-                                        ${showActions ? '<td><button onclick="removeMember(\'' + (m.department || dept) + '\', \'' + m.employee_id + '\', \'' + m.name + '\')" class="remove-btn">移除</button></td>' : ''}
                                     </tr>
                                 `).join('') : '<tr><td colspan="' + colCount + '" class="empty-cell">暂无在职人员</td></tr>'}
                             </tbody>
@@ -604,10 +733,13 @@ function loadDetailData() {
                     
                     <div class="detail-table-section">
                         <div class="detail-table-header detail-table-header-joined">
-                            <svg class="detail-table-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                            </svg>
-                            入职记录
+                            <span class="detail-head-label">
+                                <svg class="detail-table-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                入职记录
+                            </span>
+                            ${canEditDept ? '<button type="button" class="record-mgr-btn" onclick="openJoinedManager()">＋ 管理</button>' : ''}
                         </div>
                         <table class="detail-table">
                             <thead>
@@ -631,10 +763,13 @@ function loadDetailData() {
                     
                     <div class="detail-table-section">
                         <div class="detail-table-header detail-table-header-left">
-                            <svg class="detail-table-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                            </svg>
-                            离职记录
+                            <span class="detail-head-label">
+                                <svg class="detail-table-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                离职记录
+                            </span>
+                            ${canEditDept ? '<button type="button" class="record-mgr-btn" onclick="openLeftManager()">＋ 管理</button>' : ''}
                         </div>
                         <table class="detail-table">
                             <thead>
@@ -678,77 +813,105 @@ function selectDeptAndLoad(dept) {
             '八部': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>'
         };
         
-        cards.innerHTML = Object.entries(data).map(([dept, info]) => `
-            <div class="dept-card dept-card-${dept}" onclick="selectDeptAndLoad('${dept}')" style="cursor: pointer;">
-                <div class="dept-icon">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        ${deptIcons[dept] || deptIcons['五部']}
-                    </svg>
+        // 固定展示顺序：五部 → 六部 → 七部 → 八部
+        const DEPT_ORDER = ['五部', '六部', '七部', '八部'];
+        const orderedDepts = Object.keys(data).sort((a, b) => {
+            const ia = DEPT_ORDER.indexOf(a);
+            const ib = DEPT_ORDER.indexOf(b);
+            return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+        });
+
+        cards.innerHTML = orderedDepts.map(dept => {
+            const info = data[dept];
+            return `
+            <div class="dept-card dept-card-${dept}" onclick="selectDeptAndLoad('${dept}')" role="button" tabindex="0"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDeptAndLoad('${dept}');}"
+                 title="查看${dept}人员详情">
+                <div class="dept-top">
+                    <div class="dept-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            ${deptIcons[dept] || deptIcons['五部']}
+                        </svg>
+                    </div>
+                    <span class="dept-tag">${dept}</span>
                 </div>
-                <div class="dept-name">${dept}</div>
-                <div>
+                <div class="dept-count">
                     <span class="dept-number">${info.current}</span>
                     <span class="dept-unit">人</span>
+                    <span class="dept-count-label">当前在职</span>
                 </div>
-                <div class="dept-stats">
-                    <div class="dept-stat dept-stat-joined">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
-                        </svg>
-                        ${info.joined_count}入职
+                <div class="dept-foot">
+                    <div class="foot-item">
+                        <div class="foot-label">本月离职</div>
+                        <div class="foot-val">${info.left_month}<small>人</small></div>
                     </div>
-                    <div class="dept-stat dept-stat-left">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
-                        </svg>
-                        ${info.left_count}离职
+                    <div class="foot-item">
+                        <div class="foot-label">累计离职</div>
+                        <div class="foot-val">${info.left_total}<small>人</small></div>
                     </div>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     });
 })();
 
+function todayStr() {
+    const d = new Date();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+}
+function currentDetailDept() {
+    const v = document.getElementById('deptSelect').value;
+    return (v && v !== '全体') ? v : '';
+}
+function presetDeptSelect(selectEl, dept) {
+    if (!dept) return;
+    for (const opt of selectEl.options) {
+        if (opt.value === dept) { selectEl.value = dept; break; }
+    }
+}
+
 function showAddMemberModal() {
-    var modal = document.getElementById('addMemberModal');
-    modal.style.display = 'flex';
+    const form = document.getElementById('addMemberForm');
+    form.reset();
+    document.getElementById('joinDateInput').value = todayStr();
+    presetDeptSelect(form.department, currentDetailDept());
+    document.getElementById('addMemberModal').style.display = 'flex';
 }
 
 function closeMemberModal() {
-    var modal = document.getElementById('addMemberModal');
-    modal.style.display = 'none';
+    document.getElementById('addMemberModal').style.display = 'none';
 }
 
 function showAddRecordModal() {
-    var modal = document.getElementById('addRecordModal');
-    modal.style.display = 'flex';
+    const form = document.getElementById('addRecordForm');
+    form.reset();
+    document.getElementById('leftDateInput').value = todayStr();
+    presetDeptSelect(document.getElementById('leftDeptSelect'), currentDetailDept());
+    document.getElementById('addRecordModal').style.display = 'flex';
 }
 
 function closeRecordModal() {
-    var modal = document.getElementById('addRecordModal');
-    modal.style.display = 'none';
+    document.getElementById('addRecordModal').style.display = 'none';
 }
 
+// —— 入职：加入在职 + 写入入职记录 ——
 document.getElementById('addMemberForm').onsubmit = function(e) {
     e.preventDefault();
     const form = e.target;
-    const dept = form.department.value;
-    const name = form.name.value;
-    const employee_id = form.employee_id.value;
-    const level = form.level.value;
-    const phone = form.phone.value;
-    const email = form.email.value;
-    
     fetch('/api/department/add-member', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-            department: dept,
-            employee_id: employee_id,
-            name: name,
-            level: level,
-            phone: phone,
-            email: email
+            department: form.department.value,
+            employee_id: form.employee_id.value,
+            name: form.name.value,
+            level: form.level.value,
+            phone: form.phone.value,
+            email: form.email.value,
+            date: form.date.value
         })
     })
     .then(r => r.json())
@@ -764,82 +927,376 @@ document.getElementById('addMemberForm').onsubmit = function(e) {
     .catch(() => alert('请求失败'));
 };
 
+// —— 离职：写入离职记录 + 从在职移除 ——
 document.getElementById('addRecordForm').onsubmit = function(e) {
     e.preventDefault();
     const form = e.target;
-    const recordType = form.type.value;
-    const dept = form.department.value;
-    const name = form.name.value;
-    const date = form.date.value;
-    const reason = form.reason.value;
-    
-    if (recordType === 'left') {
-        // 离职：添加到离职记录，并可选择从部门移除
-        fetch('/api/department/add-left', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                department: dept,
-                name: name,
-                employee_id: form.employee_id.value,
-                date: date,
-                reason: reason
-            })
-        }).then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                closeRecordModal();
-                form.reset();
-                loadDetailData();
-            } else {
-                alert(data.message || '操作失败');
-            }
-        })
-        .catch(() => alert('请求失败'));
-    } else {
-        // 入职：实际上就是添加人员
-        fetch('/api/department/add-member', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                department: dept,
-                employee_id: '',  // 入职可能还没工号
-                name: name,
-                level: '',
-                phone: '',
-                email: ''
-            })
-        }).then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                closeRecordModal();
-                form.reset();
-                loadDetailData();
-            } else {
-                alert(data.message || '操作失败');
-            }
-        })
-        .catch(() => alert('请求失败'));
-    }
-};
-
-function removeMember(dept, employee_id, name) {
-    if (!confirm(`确定要从${dept}移除成员"${name}"吗？`)) return;
-    
-    fetch('/api/department/remove-member', {
+    fetch('/api/department/add-left', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-            department: dept,
-            employee_id: employee_id
+            department: form.department.value,
+            name: form.name.value,
+            employee_id: form.employee_id.value,
+            date: form.date.value,
+            reason: form.reason.value
         })
     })
     .then(r => r.json())
     .then(data => {
         if (data.success) {
+            closeRecordModal();
+            form.reset();
+            loadDetailData();
+            if (data.message) alert(data.message);
+        } else {
+            alert(data.message || '操作失败');
+        }
+    })
+    .catch(() => alert('请求失败'));
+};
+
+// —— 操作列按钮 ——
+function q(s) {
+    s = String(s == null ? '' : s);
+    return "'" + s.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+}
+function opsHtml(m, dept) {
+    const d = m.department || dept || '';
+    const emp = m.employee_id || '';
+    return '<button type="button" class="edit-btn" onclick="showEditMemberModal(' + q(d) + ',' + q(emp) + ')">编辑</button>'
+         + '<button type="button" class="remove-btn" onclick="removeMember(' + q(d) + ',' + q(emp) + ')">移除</button>';
+}
+function findMember(dept, employee_id) {
+    if (!lastDetailData || !Array.isArray(lastDetailData.current)) return null;
+    return lastDetailData.current.find(x => (x.department || '') === dept && String(x.employee_id) === String(employee_id)) || null;
+}
+
+// —— 编辑在职人员 ——
+function showEditMemberModal(dept, employee_id) {
+    const m = findMember(dept, employee_id);
+    if (!m) { alert('未找到该在职人员'); return; }
+    const form = document.getElementById('editMemberForm');
+    form.department.value = dept;
+    form.employee_id.value = m.employee_id;
+    document.getElementById('editDeptDisplay').value = dept;
+    document.getElementById('editEmpDisplay').value = m.employee_id;
+    form.name.value = m.name || '';
+    form.level.value = m.level || '';
+    form.phone.value = m.phone || '';
+    form.email.value = m.email || '';
+    document.getElementById('editMemberModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+    document.getElementById('editMemberModal').style.display = 'none';
+}
+
+document.getElementById('editMemberForm').onsubmit = function(e) {
+    e.preventDefault();
+    const form = e.target;
+    fetch('/api/department/update-member', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            department: form.department.value,
+            employee_id: form.employee_id.value,
+            name: form.name.value,
+            level: form.level.value,
+            phone: form.phone.value,
+            email: form.email.value
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            closeEditModal();
             loadDetailData();
         } else {
             alert(data.message || '操作失败');
+        }
+    })
+    .catch(() => alert('请求失败'));
+};
+
+function removeMember(dept, employee_id) {
+    const m = findMember(dept, employee_id);
+    const who = dept + (m && m.name ? '（' + m.name + '）' : '');
+    if (!confirm(`确定要从 ${who} 移除该人员吗？如属离职，请使用“离职”按钮以同步登记离职记录。`)) return;
+    fetch('/api/department/remove-member', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ department: dept, employee_id: employee_id })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) { loadDetailData(); }
+        else { alert(data.message || '操作失败'); }
+    })
+    .catch(() => alert('请求失败'));
+}
+
+/* ============ 入职/离职记录管理 ============ */
+let recMgrType = 'joined';
+let recMgrDept = '';
+let recMgrRows = [];
+let recMgrFilter = '';
+
+function escHtml(s) {
+    s = String(s == null ? '' : s);
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function setManagerSearchVisible(show) {
+    const w = document.getElementById('recordMgrSearchWrap');
+    if (w) w.style.display = show ? 'block' : 'none';
+}
+
+function onManagerSearch(value) {
+    recMgrFilter = (value || '').trim().toLowerCase();
+    renderRecordList();
+}
+
+// 返回 [{r: 行数据, i: 原始索引}]，按当前搜索词过滤
+function filteredWithIndex() {
+    const out = [];
+    recMgrRows.forEach((r, i) => {
+        if (!recMgrFilter) { out.push({ r: r, i: i }); return; }
+        const hay = Object.keys(r).map(k => r[k] == null ? '' : r[k]).join(' ').toLowerCase();
+        if (hay.indexOf(recMgrFilter) !== -1) out.push({ r: r, i: i });
+    });
+    return out;
+}
+
+function openRecordManager(type) {
+    recMgrType = type;
+    recMgrDept = currentDetailDept();          // 具体部门或空(全体)
+    recMgrFilter = '';
+    const search = document.getElementById('recordMgrSearch');
+    if (search) search.value = '';
+    setManagerSearchVisible(true);
+    document.getElementById('recordManagerModal').style.display = 'flex';
+    loadManagerData();
+}
+
+function openJoinedManager() { openRecordManager('joined'); }
+function openLeftManager() { openRecordManager('left'); }
+function openCurrentManager() { openRecordManager('current'); }
+
+function closeRecordManagerModal() {
+    document.getElementById('recordManagerModal').style.display = 'none';
+}
+
+function loadManagerData() {
+    const url = recMgrDept
+        ? '/api/department/detail?department=' + encodeURIComponent(recMgrDept)
+        : '/api/department/all';
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            recMgrRows = (recMgrType === 'current' ? (data.current || []) : (data[recMgrType] || []));
+            renderRecordList();
+        })
+        .catch(() => alert('加载记录失败'));
+}
+
+function renderRecordList() {
+    const body = document.getElementById('recordManagerBody');
+    if (recMgrType === 'current') {
+        renderCurrentList(body);
+        return;
+    }
+    setManagerSearchVisible(true);
+    document.getElementById('recordManagerTitle').textContent =
+        (recMgrType === 'joined' ? '入职记录' : '离职记录') + ' 管理';
+    const noun = recMgrType === 'joined' ? '入职记录' : '离职记录';
+    if (!recMgrRows.length) {
+        body.innerHTML = '<div class="record-mgr-empty">暂无' + noun + '</div>';
+        return;
+    }
+    const list = filteredWithIndex();
+    if (!list.length) {
+        body.innerHTML = '<div class="record-mgr-empty">未找到匹配的' + noun + '</div>';
+        return;
+    }
+    const isAll = !recMgrDept;
+    const reasonLabel = recMgrType === 'joined' ? '备注' : '离职原因';
+    const rows = list.map(item =>
+        `<tr>
+            ${isAll ? `<td>${escHtml(item.r.department)}</td>` : ''}
+            <td>${escHtml(item.r.name)}</td>
+            <td>${escHtml(item.r.date)}</td>
+            <td>${escHtml(item.r.reason)}</td>
+            <td class="record-mgr-actions">
+                <button type="button" class="record-mgr-edit-btn" onclick="editRecordRow(${item.r.id})">编辑</button>
+                <button type="button" class="record-mgr-del-btn" onclick="deleteRecordRow(${item.r.id})">删除</button>
+            </td>
+        </tr>`
+    ).join('');
+    const countText = recMgrFilter
+        ? `匹配 ${list.length} / 共 ${recMgrRows.length} 条`
+        : `共 ${recMgrRows.length} 条`;
+    body.innerHTML =
+        `<div class="record-mgr-toolbar"><span class="record-mgr-count">${countText}</span></div>` +
+        `<table class="record-mgr-table"><thead><tr>` +
+        (isAll ? '<th>部门</th>' : '') +
+        `<th>姓名</th><th>${recMgrType === 'joined' ? '入职' : '离职'}日期</th><th>${reasonLabel}</th><th>操作</th>` +
+        `</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderCurrentList(body) {
+    setManagerSearchVisible(true);
+    document.getElementById('recordManagerTitle').textContent = '在职人员 管理';
+    if (!recMgrRows.length) {
+        body.innerHTML = '<div class="record-mgr-empty">暂无在职人员</div>';
+        return;
+    }
+    const list = filteredWithIndex();
+    if (!list.length) {
+        body.innerHTML = '<div class="record-mgr-empty">未找到匹配的在职人员</div>';
+        return;
+    }
+    const isAll = !recMgrDept;
+    const rows = list.map(item =>
+        `<tr>
+            ${isAll ? `<td>${escHtml(item.r.department)}</td>` : ''}
+            <td>${escHtml(item.r.employee_id)}</td>
+            <td>${escHtml(item.r.name)}</td>
+            <td>${escHtml(item.r.level)}</td>
+            <td>${escHtml(item.r.phone)}</td>
+            <td>${escHtml(item.r.email)}</td>
+            <td class="record-mgr-actions">
+                <button type="button" class="record-mgr-edit-btn" onclick="editCurrentRow(${item.i})">编辑</button>
+                <button type="button" class="record-mgr-del-btn" onclick="deleteCurrentRow(${item.i})">删除</button>
+            </td>
+        </tr>`
+    ).join('');
+    const countText = recMgrFilter
+        ? `匹配 ${list.length} / 共 ${recMgrRows.length} 人`
+        : `共 ${recMgrRows.length} 人`;
+    body.innerHTML =
+        `<div class="record-mgr-toolbar"><span class="record-mgr-count">${countText}</span></div>` +
+        `<table class="record-mgr-table"><thead><tr>` +
+        (isAll ? '<th>部门</th>' : '') +
+        `<th>工号</th><th>姓名</th><th>级别</th><th>电话</th><th>邮箱</th><th>操作</th>` +
+        `</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function editCurrentRow(i) {
+    const m = recMgrRows[i];
+    if (!m) return;
+    setManagerSearchVisible(false);
+    const body = document.getElementById('recordManagerBody');
+    const deptText = m.department || recMgrDept || '';
+    body.innerHTML =
+        `<p class="record-mgr-note">部门：${escHtml(deptText)}　工号：${escHtml(m.employee_id)}（不可修改）</p>` +
+        `<div class="form-group"><label class="form-label">姓名</label><input class="form-input" id="rmName" value="${escHtml(m.name)}"></div>` +
+        `<div class="form-group"><label class="form-label">级别</label><input class="form-input" id="rmLevel" value="${escHtml(m.level)}"></div>` +
+        `<div class="form-group"><label class="form-label">电话</label><input class="form-input" id="rmPhone" value="${escHtml(m.phone)}"></div>` +
+        `<div class="form-group"><label class="form-label">邮箱</label><input class="form-input" id="rmEmail" value="${escHtml(m.email)}"></div>` +
+        `<div style="display:flex;justify-content:flex-end;gap:0.75rem;padding-top:1rem;border-top:1px solid #f0f0f0;">` +
+            `<button type="button" class="modal-btn modal-btn-cancel" onclick="loadManagerData()">返回</button>` +
+            `<button type="button" class="modal-btn modal-btn-primary" onclick="saveCurrentRow(${i})">保存</button>` +
+        `</div>`;
+}
+
+function saveCurrentRow(i) {
+    const m = recMgrRows[i];
+    if (!m) return;
+    fetch('/api/department/update-member', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            department: m.department || recMgrDept,
+            employee_id: m.employee_id,
+            name: document.getElementById('rmName').value,
+            level: document.getElementById('rmLevel').value,
+            phone: document.getElementById('rmPhone').value,
+            email: document.getElementById('rmEmail').value
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) { loadManagerData(); loadDetailData(); }
+        else { alert(data.message || '保存失败'); }
+    })
+    .catch(() => alert('请求失败'));
+}
+
+function deleteCurrentRow(i) {
+    const m = recMgrRows[i];
+    if (!m) return;
+    const dept = m.department || recMgrDept;
+    if (!confirm(`确定从 ${dept} 删除在职人员「${m.name}」吗？如属离职，请使用“离职”按钮以同步登记离职记录。`)) return;
+    fetch('/api/department/remove-member', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ department: dept, employee_id: m.employee_id })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) { loadManagerData(); loadDetailData(); }
+        else { alert(data.message || '删除失败'); }
+    })
+    .catch(() => alert('请求失败'));
+}
+
+function editRecordRow(id) {
+    const r = recMgrRows.find(x => x.id === id);
+    if (!r) return;
+    setManagerSearchVisible(false);
+    const body = document.getElementById('recordManagerBody');
+    const reasonLabel = recMgrType === 'joined' ? '备注' : '离职原因';
+    const deptText = recMgrDept || r.department || '全体';
+    body.innerHTML =
+        `<p class="record-mgr-note">部门：${escHtml(deptText)}（如需改动请删除后重新录入）</p>` +
+        `<div class="form-group"><label class="form-label">姓名</label><input class="form-input" id="rmName" value="${escHtml(r.name)}"></div>` +
+        `<div class="form-group"><label class="form-label">${recMgrType === 'joined' ? '入职' : '离职'}日期</label><input type="date" class="form-input" id="rmDate" value="${escHtml(r.date)}"></div>` +
+        `<div class="form-group"><label class="form-label">${reasonLabel}</label><input class="form-input" id="rmReason" value="${escHtml(r.reason)}"></div>` +
+        `<div style="display:flex;justify-content:flex-end;gap:0.75rem;padding-top:1rem;border-top:1px solid #f0f0f0;">` +
+            `<button type="button" class="modal-btn modal-btn-cancel" onclick="loadManagerData()">返回</button>` +
+            `<button type="button" class="modal-btn modal-btn-primary" onclick="saveRecordRow(${id})">保存</button>` +
+        `</div>`;
+}
+
+function saveRecordRow(id) {
+    const name = document.getElementById('rmName').value;
+    const date = document.getElementById('rmDate').value;
+    const reason = document.getElementById('rmReason').value;
+    fetch('/api/department/record/update', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ type: recMgrType, id: id, name: name, date: date, reason: reason })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            loadManagerData();
+            loadDetailData();
+        } else {
+            alert(data.message || '保存失败');
+        }
+    })
+    .catch(() => alert('请求失败'));
+}
+
+function deleteRecordRow(id) {
+    const r = recMgrRows.find(x => x.id === id);
+    const who = r ? (recMgrDept || r.department || '') + ' ' + r.name : ('# ' + id);
+    if (!confirm(`确定删除记录「${who}」吗？此操作不可恢复。`)) return;
+    fetch('/api/department/record/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ type: recMgrType, id: id })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            loadManagerData();
+            loadDetailData();
+        } else {
+            alert(data.message || '删除失败');
         }
     })
     .catch(() => alert('请求失败'));
@@ -968,6 +1425,23 @@ function importDepartment(input) {
     border-bottom: 1px solid #f0f0f0;
     color: #1d1d1f;
 }
+.detail-table td.op-cell {
+    white-space: nowrap;
+}
+.edit-btn {
+    color: #0071e3;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+.edit-btn:hover {
+    background: #eef5ff;
+    text-decoration: underline;
+}
 .detail-table tbody tr:last-child td {
     border-bottom: none;
 }
@@ -995,5 +1469,96 @@ function importDepartment(input) {
     color: #86868b;
     padding: 2rem !important;
 }
+
+/* 入职/离职记录表头：左图标标题 + 右侧“管理”按钮 */
+.detail-table-header {
+    justify-content: space-between;
+}
+.detail-head-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.record-mgr-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.3rem 0.7rem;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+.record-mgr-btn:hover {
+    background: rgba(255, 255, 255, 0.38);
+}
+
+/* 记录管理弹窗内容 */
+.record-mgr-search {
+    padding: 1rem 1.5rem 0;
+}
+.record-mgr-body {
+    padding: 1.25rem 1.5rem 1.75rem;
+}
+.record-mgr-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+.record-mgr-count {
+    font-size: 0.875rem;
+    color: #86868b;
+}
+.record-mgr-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.record-mgr-table th {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #86868b;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fafafa;
+    white-space: nowrap;
+}
+.record-mgr-table td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+    color: #1d1d1f;
+}
+.record-mgr-table tbody tr:last-child td { border-bottom: none; }
+.record-mgr-empty {
+    text-align: center;
+    color: #86868b;
+    padding: 2rem;
+}
+.record-mgr-actions {
+    white-space: nowrap;
+}
+.record-mgr-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+}
+.record-mgr-edit-btn { color: #0071e3; }
+.record-mgr-edit-btn:hover { background: #eef5ff; }
+.record-mgr-del-btn { color: #ff3b30; }
+.record-mgr-del-btn:hover { background: #fff5f5; }
+.record-mgr-note {
+    font-size: 0.8rem;
+    color: #86868b;
+    margin: 0 0 0.5rem;
+}
+
 </style>
 {% endblock %}

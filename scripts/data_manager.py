@@ -89,6 +89,15 @@ CREATE TABLE IF NOT EXISTS staff_left (
     operator   TEXT
 );
 
+CREATE TABLE IF NOT EXISTS staff_joined (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    department TEXT,
+    name       TEXT,
+    reason     TEXT,
+    date       TEXT,
+    operator   TEXT
+);
+
 CREATE TABLE IF NOT EXISTS action_items (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     title      TEXT,
@@ -270,6 +279,12 @@ def _all_left_records() -> List[Dict]:
     return [dict(r) for r in rows]
 
 
+def _all_joined_records() -> List[Dict]:
+    c = _conn()
+    rows = c.execute('SELECT * FROM staff_joined ORDER BY id DESC').fetchall()
+    return [dict(r) for r in rows]
+
+
 def get_department_staff(dept: str = None) -> List[Dict]:
     """获取指定部门人员；dept 为 None 或 '全体' 时返回所有部门（不带 department 字段）"""
     c = _conn()
@@ -282,11 +297,15 @@ def get_department_staff(dept: str = None) -> List[Dict]:
 
 def get_department_summary() -> Dict[str, Dict]:
     c = _conn()
+    cur_ym = datetime.now().strftime('%Y-%m')
     summary = {}
     for dept in DEPT_SHORT_NAMES:
         cur = c.execute('SELECT COUNT(*) AS n FROM staff WHERE department=?', (dept,)).fetchone()['n']
         left = c.execute('SELECT COUNT(*) AS n FROM staff_left WHERE department=?', (dept,)).fetchone()['n']
-        summary[dept] = {'current': cur, 'joined_count': 0, 'left_count': left}
+        left_month = c.execute(
+            "SELECT COUNT(*) AS n FROM staff_left WHERE department=? AND substr(date,1,7)=?",
+            (dept, cur_ym)).fetchone()['n']
+        summary[dept] = {'current': cur, 'left_total': left, 'left_month': left_month}
     return summary
 
 
@@ -299,9 +318,11 @@ def get_department_detail(dept: str) -> Dict[str, Any]:
         member = {k: row[k] for k in ('employee_id', 'name', 'level', 'phone', 'email')}
         member['department'] = dept
         current.append(member)
+    joined = [dict(r) for r in c.execute(
+        'SELECT * FROM staff_joined WHERE department=? ORDER BY id DESC', (dept,))]
     left = [dict(r) for r in c.execute(
         'SELECT * FROM staff_left WHERE department=? ORDER BY id DESC', (dept,))]
-    return {'current': current, 'joined': [], 'left': left}
+    return {'current': current, 'joined': joined, 'left': left}
 
 
 def get_department_all() -> Dict[str, Any]:
@@ -321,7 +342,7 @@ def get_department_all() -> Dict[str, Any]:
         'current': all_current,
         'total_count': total,
         'departments': dept_counts,
-        'joined': [],
+        'joined': _all_joined_records(),
         'left': _all_left_records()
     }
 
@@ -386,6 +407,93 @@ def add_left_record(record: Dict, operator: str = 'System',
     c.commit()
     add_history(f"{record.get('name', 'Unknown')} 离职 ({record.get('department', '')})",
                 operator, op_employee_id, ip_address)
+
+
+def add_joined_record(record: Dict, operator: str = 'System',
+                      op_employee_id: str = '', ip_address: str = '') -> None:
+    """新增一条入职记录（record: department/name/reason/date）"""
+    c = _conn()
+    c.execute('INSERT INTO staff_joined(department,name,reason,date,operator) VALUES(?,?,?,?,?)',
+              (record.get('department', ''), record.get('name', ''), record.get('reason', ''),
+               record.get('date', ''), operator))
+    c.commit()
+    add_history(f"{record.get('name', 'Unknown')} 入职 ({record.get('department', '')})",
+                operator, op_employee_id, ip_address)
+
+
+def find_staff_id_by_name(dept: str, name: str):
+    """在指定部门内按姓名精确查找，返回唯一匹配的 employee_id；无匹配或多个同名返回 None"""
+    c = _conn()
+    rows = c.execute('SELECT employee_id FROM staff WHERE department=? AND name=?', (dept, name)).fetchall()
+    if len(rows) == 1:
+        return rows[0]['employee_id']
+    return None
+
+
+def update_staff_member(dept: str, employee_id: str, fields: Dict,
+                        operator: str = 'System', op_employee_id: str = '',
+                        ip_address: str = '') -> bool:
+    """编辑某在职人员的信息（fields: name/level/phone/email），返回是否找到并更新"""
+    if dept not in DEPT_SHORT_NAMES:
+        return False
+    c = _conn()
+    emp = str(employee_id).strip()
+    if not emp:
+        return False
+    exists = c.execute('SELECT 1 FROM staff WHERE department=? AND employee_id=?', (dept, emp)).fetchone()
+    if not exists:
+        return False
+    sets, vals = [], []
+    for k in ('name', 'level', 'phone', 'email'):
+        if k in fields:
+            sets.append(f'{k}=?')
+            vals.append(str(fields.get(k, '')))
+    if sets:
+        vals.extend((dept, emp))
+        c.execute(f'UPDATE staff SET {", ".join(sets)} WHERE department=? AND employee_id=?', vals)
+        c.commit()
+        add_history(f"更新人员: {fields.get('name', emp)} ({dept})", operator, op_employee_id, ip_address)
+    return True
+
+
+_RECORD_TABLES = {'joined': 'staff_joined', 'left': 'staff_left'}
+
+
+def _record_table(rec_type: str):
+    return _RECORD_TABLES.get(rec_type)
+
+
+def update_department_record(rec_type: str, rec_id: int, fields: Dict) -> bool:
+    """编辑某条入职/离职记录（可改 name/date/reason），返回是否找到并更新"""
+    table = _record_table(rec_type)
+    if table is None:
+        return False
+    c = _conn()
+    exists = c.execute(f'SELECT 1 FROM {table} WHERE id=?', (rec_id,)).fetchone()
+    if not exists:
+        return False
+    sets, vals = [], []
+    for k in ('name', 'date', 'reason'):
+        if k in fields:
+            sets.append(f'{k}=?')
+            vals.append(str(fields.get(k, '')))
+    if not sets:
+        return True
+    vals.append(rec_id)
+    c.execute(f'UPDATE {table} SET {", ".join(sets)} WHERE id=?', vals)
+    c.commit()
+    return True
+
+
+def delete_department_record(rec_type: str, rec_id: int) -> bool:
+    """删除某条入职/离职记录"""
+    table = _record_table(rec_type)
+    if table is None:
+        return False
+    c = _conn()
+    cur = c.execute(f'DELETE FROM {table} WHERE id=?', (rec_id,))
+    c.commit()
+    return cur.rowcount > 0
 
 
 # ===== Action Items =====

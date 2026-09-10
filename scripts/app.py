@@ -19,6 +19,8 @@ from data_manager import (
     DEPT_SHORT_NAMES,
     get_all_staff, get_department_summary, get_department_detail, get_department_all, get_department_staff,
     add_staff_to_department, remove_staff_from_department, update_department_members, add_left_record,
+    add_joined_record, find_staff_id_by_name, update_staff_member,
+    update_department_record, delete_department_record,
     get_all_action_items, add_action_item, update_action_item, delete_action_item,
     get_all_info_list, create_info_table, add_info_row, update_info_row, delete_info_table, delete_info_row,
     get_collector_sheets, get_collector_sheet, create_collector_sheet,
@@ -364,7 +366,7 @@ def api_department_members():
 
 @app.route('/api/department/add-member', methods=['POST'])
 def api_department_add_member():
-    """添加人员到指定部门"""
+    """入职：把人员加入指定部门，并写入入职记录"""
     if 'user' not in session:
         return jsonify({'success': False, 'message': '请先登录'}), 401
     
@@ -393,8 +395,101 @@ def api_department_add_member():
     employee_id = user.get('employee_id', '')
     success = add_staff_to_department(dept, member, operator, employee_id, ip_address)
     if not success:
-        return jsonify({'success': False, 'message': '该员工已存在（工号重复）'}), 400
+        return jsonify({'success': False, 'message': '该员工已在此部门在职（工号重复）'}), 400
     
+    join_date = (data.get('date') or '').strip() or datetime.now().strftime('%Y-%m-%d')
+    add_joined_record({
+        'department': dept,
+        'name': member['name'],
+        'reason': (data.get('reason') or '').strip(),
+        'date': join_date
+    }, operator, employee_id, ip_address)
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/department/update-member', methods=['POST'])
+def api_department_update_member():
+    """编辑当前在职人员的信息（姓名/级别/电话/邮箱）"""
+    if 'user' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    
+    user = session['user']
+    if not user.get('can_edit_department', False):
+        return jsonify({'success': False, 'message': '您没有权限修改部门信息，请联系主管开通权限'}), 403
+    
+    data = request.json
+    dept = data.get('department', '')
+    employee_id = data.get('employee_id', '')
+    fields = {
+        'name': data.get('name', ''),
+        'level': data.get('level', ''),
+        'phone': data.get('phone', ''),
+        'email': data.get('email', '')
+    }
+    operator = user.get('name', user.get('employee_id', 'Unknown'))
+    
+    ip_address = get_client_ip()
+    op_employee_id = user.get('employee_id', '')
+    ok = update_staff_member(dept, employee_id, fields, operator, op_employee_id, ip_address)
+    if not ok:
+        return jsonify({'success': False, 'message': '未找到该在职人员'}), 400
+    return jsonify({'success': True})
+
+
+@app.route('/api/department/record/update', methods=['POST'])
+def api_department_record_update():
+    """编辑某条入职/离职记录（type: joined/left，字段: name/date/reason）"""
+    if 'user' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    user = session['user']
+    if not user.get('can_edit_department', False):
+        return jsonify({'success': False, 'message': '您没有权限修改部门信息，请联系主管开通权限'}), 403
+
+    data = request.json or {}
+    rec_type = data.get('type', '')
+    try:
+        rec_id = int(data.get('id', 0))
+    except (TypeError, ValueError):
+        rec_id = 0
+    if rec_type not in ('joined', 'left'):
+        return jsonify({'success': False, 'message': '记录类型不正确'}), 400
+    if rec_id <= 0:
+        return jsonify({'success': False, 'message': '缺少记录ID'}), 400
+
+    ok = update_department_record(rec_type, rec_id, {
+        'name': data.get('name', ''),
+        'date': data.get('date', ''),
+        'reason': data.get('reason', '')
+    })
+    if not ok:
+        return jsonify({'success': False, 'message': '未找到该记录或未做修改'}), 400
+    return jsonify({'success': True})
+
+
+@app.route('/api/department/record/delete', methods=['POST'])
+def api_department_record_delete():
+    """删除某条入职/离职记录（type: joined/left）"""
+    if 'user' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    user = session['user']
+    if not user.get('can_edit_department', False):
+        return jsonify({'success': False, 'message': '您没有权限修改部门信息，请联系主管开通权限'}), 403
+
+    data = request.json or {}
+    rec_type = data.get('type', '')
+    try:
+        rec_id = int(data.get('id', 0))
+    except (TypeError, ValueError):
+        rec_id = 0
+    if rec_type not in ('joined', 'left'):
+        return jsonify({'success': False, 'message': '记录类型不正确'}), 400
+    if rec_id <= 0:
+        return jsonify({'success': False, 'message': '缺少记录ID'}), 400
+
+    ok = delete_department_record(rec_type, rec_id)
+    if not ok:
+        return jsonify({'success': False, 'message': '记录不存在或已删除'}), 400
     return jsonify({'success': True})
 
 
@@ -452,7 +547,7 @@ def api_department_update_members():
 
 @app.route('/api/department/add-left', methods=['POST'])
 def api_department_add_left():
-    """添加离职记录"""
+    """离职：写入离职记录，并同步把该人员从在职列表移除"""
     if 'user' not in session:
         return jsonify({'success': False, 'message': '请先登录'}), 401
     
@@ -465,6 +560,11 @@ def api_department_add_left():
     name = data.get('name', '')
     operator = user.get('name', user.get('employee_id', 'Unknown'))
     
+    if dept not in DEPT_SHORT_NAMES:
+        return jsonify({'success': False, 'message': f'未知部门: {dept}'}), 400
+    if not name:
+        return jsonify({'success': False, 'message': '姓名不能为空'}), 400
+    
     record = {
         'name': name,
         'department': dept,
@@ -475,19 +575,29 @@ def api_department_add_left():
     ip_address = get_client_ip()
     op_employee_id = user.get('employee_id', '')
     
-    # 如果提供了 employee_id，同时从部门移除该人员
-    employee_id = data.get('employee_id', '')
-    if employee_id and dept in DEPT_SHORT_NAMES:
-        remove_staff_from_department(dept, employee_id, operator, op_employee_id, ip_address)
+    # 从在职列表移除：优先按工号，其次按该部门内唯一姓名匹配
+    employee_id = (data.get('employee_id') or '').strip()
+    emp_to_remove = employee_id or find_staff_id_by_name(dept, name)
+    removed = False
+    if emp_to_remove:
+        removed = remove_staff_from_department(dept, emp_to_remove, operator, op_employee_id, ip_address)
     
     add_left_record(record, operator, op_employee_id, ip_address)
-    return jsonify({'success': True})
+    
+    message = ''
+    if not removed:
+        message = '已记录离职。但未能在在职列表中找到匹配人员，未自动移除（如工号留空且存在同名人员，请填写工号）'
+    
+    return jsonify({'success': True, 'message': message, 'removed': removed})
 
 
 @app.route('/api/department/export')
 @api_login_required
 def api_department_export():
-    """导出人员信息为 Excel"""
+    """导出人员信息为 Excel（需部门编辑权限）"""
+    user = get_current_user()
+    if not user.get('can_edit_department', False):
+        return jsonify({'success': False, 'message': '您没有权限导出部门信息，请联系主管开通权限'}), 403
     dept = request.args.get('department', '全体')
     
     try:
@@ -1016,14 +1126,20 @@ def api_collector_import(sheet_id):
 @app.route('/history')
 @login_required
 def history():
-    """历史记录页面"""
+    """历史记录页面（需部门编辑权限）"""
+    user = get_current_user()
+    if not user.get('can_edit_department', False):
+        return redirect(url_for('index'))
     return render_template('history.html')
 
 
 @app.route('/api/history')
 @api_login_required
 def api_history():
-    """获取历史记录"""
+    """获取历史记录（需部门编辑权限）"""
+    user = get_current_user()
+    if not user.get('can_edit_department', False):
+        return jsonify({'success': False, 'message': '您没有权限查看历史记录，请联系主管开通权限'}), 403
     limit = request.args.get('limit', 100, type=int)
     records = get_history(limit)
     return jsonify(records)
