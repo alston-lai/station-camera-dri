@@ -98,6 +98,30 @@ CREATE TABLE IF NOT EXISTS staff_joined (
     operator   TEXT
 );
 
+CREATE TABLE IF NOT EXISTS personnel_files (
+    employee_id       TEXT PRIMARY KEY,
+    name              TEXT DEFAULT '',
+    department        TEXT DEFAULT '',
+    join_date         TEXT DEFAULT '',
+    title             TEXT DEFAULT '',
+    level             TEXT DEFAULT '',
+    salary            TEXT DEFAULT '',
+    equity            TEXT DEFAULT '',
+    promotion         TEXT DEFAULT '',
+    reward_punishment TEXT DEFAULT '',
+    updated_at        TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    employee_id             TEXT PRIMARY KEY,
+    name                    TEXT DEFAULT '',
+    can_edit_department     INTEGER DEFAULT 0,
+    can_edit_action_items   INTEGER DEFAULT 0,
+    can_edit_info_list      INTEGER DEFAULT 0,
+    can_edit_personnel_file TEXT DEFAULT 'NO',
+    created_at              TEXT DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS action_items (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     title      TEXT,
@@ -161,6 +185,116 @@ def _mark_migrated():
     c = _conn()
     c.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('migrated','1')")
     c.commit()
+
+
+def _meta_get(key: str):
+    row = _conn().execute('SELECT value FROM meta WHERE key=?', (key,)).fetchone()
+    return row['value'] if row else None
+
+
+def _meta_set(key: str, value: str = '1'):
+    c = _conn()
+    c.execute('INSERT OR REPLACE INTO meta(key,value) VALUES(?,?)', (key, value))
+    c.commit()
+
+
+# ===== 用户表（从旧 users.json 一次性迁移）=====
+def _migrate_users_from_json():
+    """把 data/users.json 一次性导入 users 表（之后不再依赖该文件）"""
+    if _meta_get('users_migrated'):
+        return
+    c = _conn()
+    if c.execute('SELECT COUNT(*) AS n FROM users').fetchone()['n'] == 0:
+        path = os.path.join(DATA_DIR, 'users.json')
+        if os.path.exists(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                for u in data.get('users', []):
+                    emp = str(u.get('employee_id', '')).strip()
+                    if not emp:
+                        continue
+                    c.execute(
+                        'INSERT OR IGNORE INTO users'
+                        '(employee_id,name,can_edit_department,can_edit_action_items,'
+                        'can_edit_info_list,can_edit_personnel_file,created_at)'
+                        ' VALUES(?,?,?,?,?,?,?)',
+                        (emp, u.get('name', ''),
+                         1 if u.get('can_edit_department') else 0,
+                         1 if u.get('can_edit_action_items') else 0,
+                         1 if u.get('can_edit_info_list') else 0,
+                         str(u.get('can_edit_personnel_file', 'NO')).strip(), _now_minute()))
+                c.commit()
+            except Exception:
+                c.rollback()
+    _meta_set('users_migrated')
+
+
+# ===== 用户 CRUD =====
+def get_all_users() -> List[Dict]:
+    c = _conn()
+    rows = c.execute('SELECT * FROM users ORDER BY employee_id').fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_user(employee_id: str) -> Optional[Dict]:
+    row = _conn().execute('SELECT * FROM users WHERE employee_id=?',
+                          (str(employee_id).strip(),)).fetchone()
+    return dict(row) if row else None
+
+
+def upsert_user(record: Dict) -> bool:
+    emp = str(record.get('employee_id', '')).strip()
+    if not emp:
+        return False
+    c = _conn()
+    exists = c.execute('SELECT 1 FROM users WHERE employee_id=?', (emp,)).fetchone()
+    if exists:
+        c.execute(
+            'UPDATE users SET name=?, can_edit_department=?, can_edit_action_items=?,'
+            ' can_edit_info_list=?, can_edit_personnel_file=? WHERE employee_id=?',
+            (record.get('name', ''),
+             1 if record.get('can_edit_department') else 0,
+             1 if record.get('can_edit_action_items') else 0,
+             1 if record.get('can_edit_info_list') else 0,
+             str(record.get('can_edit_personnel_file', 'NO')).strip(), emp))
+    else:
+        c.execute(
+            'INSERT INTO users(employee_id,name,can_edit_department,can_edit_action_items,'
+            'can_edit_info_list,can_edit_personnel_file,created_at) VALUES(?,?,?,?,?,?,?)',
+            (emp, record.get('name', ''),
+             1 if record.get('can_edit_department') else 0,
+             1 if record.get('can_edit_action_items') else 0,
+             1 if record.get('can_edit_info_list') else 0,
+             str(record.get('can_edit_personnel_file', 'NO')).strip(), _now_minute()))
+    c.commit()
+    return True
+
+
+def delete_user(employee_id: str) -> bool:
+    c = _conn()
+    cur = c.execute('DELETE FROM users WHERE employee_id=?', (str(employee_id).strip(),))
+    c.commit()
+    return cur.rowcount > 0
+
+
+def bootstrap_admin_if_empty():
+    """user 表为空时，可用环境变量创建一个初始管理员，避免全新部署被锁在外面。
+    需设置 ADMIN_EMPLOYEE_ID（可选 ADMIN_NAME）。"""
+    c = _conn()
+    if c.execute('SELECT COUNT(*) AS n FROM users').fetchone()['n'] > 0:
+        return
+    emp = os.environ.get('ADMIN_EMPLOYEE_ID', '').strip()
+    if not emp:
+        return
+    upsert_user({
+        'employee_id': emp,
+        'name': os.environ.get('ADMIN_NAME', 'Admin'),
+        'can_edit_department': True,
+        'can_edit_action_items': True,
+        'can_edit_info_list': True,
+        'can_edit_personnel_file': 'ALL'
+    })
 
 
 # ===== 一次性的 JSON -> SQLite 迁移 =====
@@ -496,6 +630,222 @@ def delete_department_record(rec_type: str, rec_id: int) -> bool:
     return cur.rowcount > 0
 
 
+# ===== 员工档案（人事档案）=====
+# 数据来源：项目根目录 "档案信息.xlsx"；首次访问时把该员工档案落库，
+# 之后编辑结果保存在 personnel_files 表中（Excel 作为初始/缺省来源）。
+PERSONNEL_FILE_PATH = os.path.join(PROJECT_DIR, '档案信息.xlsx')
+
+_personnel_cache = {'mtime': None, 'data': {}}
+
+
+def _fmt_date_value(value) -> str:
+    """把 Excel 里的日期（datetime/字符串）规范成 YYYY-MM-DD"""
+    if value is None:
+        return ''
+    if isinstance(value, datetime):
+        return value.strftime('%Y-%m-%d')
+    s = str(value).strip()
+    if not s:
+        return ''
+    for sep in ('-', '/', '.'):
+        if sep in s:
+            parts = s.split(' ')[0].split(sep)
+            if len(parts) == 3:
+                try:
+                    y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+                    return f'{y:04d}-{m:02d}-{d:02d}'
+                except ValueError:
+                    return s
+    return s
+
+
+def _num_to_str(value) -> str:
+    if value is None:
+        return ''
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
+def _calc_seniority(join_date: str) -> str:
+    """按入职日期计算司龄（年，保留 2 位小数）"""
+    if not join_date:
+        return ''
+    d = None
+    for fmt in ('%Y-%m-%d', '%Y/%m/%d', '%Y.%m.%d'):
+        try:
+            d = datetime.strptime(str(join_date).strip(), fmt)
+            break
+        except ValueError:
+            continue
+    if d is None:
+        return ''
+    years = (datetime.now() - d).days / 365.25
+    return f'{years:.2f}'
+
+
+def _load_personnel_excel() -> Dict[str, Dict]:
+    """读取并缓存 档案信息.xlsx，返回 {工号: 档案字段}"""
+    if openpyxl is None or not os.path.exists(PERSONNEL_FILE_PATH):
+        return {}
+    try:
+        mtime = os.path.getmtime(PERSONNEL_FILE_PATH)
+    except OSError:
+        return {}
+    if _personnel_cache['mtime'] == mtime and _personnel_cache['data']:
+        return _personnel_cache['data']
+
+    try:
+        wb = openpyxl.load_workbook(PERSONNEL_FILE_PATH, data_only=True)
+    except Exception:
+        return {}
+    ws = wb.worksheets[0]
+    headers = [('' if c.value is None else str(c.value)) for c in ws[1]]
+
+    def find_col(*keywords):
+        for i, h in enumerate(headers):
+            for kw in keywords:
+                if kw in h:
+                    return i
+        return None
+
+    emp_i = find_col('工号')
+    name_i = find_col('姓名')
+    dept_i = find_col('部门')
+    join_i = find_col('入职日期')
+    title_i = find_col('职务')
+    level_i = find_col('职级', '级别')
+    salary_i = find_col('薪资')
+    equity_i = find_col('股权')
+    reward_i = find_col('奖惩')
+    promo_cols = [i for i, h in enumerate(headers) if '晋升' in h]
+
+    data = {}
+    for r in ws.iter_rows(min_row=2, values_only=True):
+        if emp_i is None or emp_i >= len(r) or r[emp_i] is None:
+            continue
+        emp = _num_to_str(r[emp_i])
+        if not emp:
+            continue
+
+        def cell(idx):
+            if idx is None or idx >= len(r) or r[idx] is None:
+                return ''
+            return str(r[idx]).strip()
+
+        promotions = []
+        for i in promo_cols:
+            val = cell(i)
+            if val.upper() in ('Y', 'YES', 'TRUE', '是', '1'):
+                label = headers[i].split('是否晋升')[0].replace('\n', ' ').strip()
+                promotions.append(f'{label} 晋升')
+
+        dept_full = cell(dept_i)
+        data[emp] = {
+            'employee_id': emp,
+            'name': cell(name_i),
+            'department': full_to_short(dept_full) if dept_full else '',
+            'join_date': _fmt_date_value(r[join_i]) if (join_i is not None and join_i < len(r)) else '',
+            'title': cell(title_i),
+            'level': cell(level_i),
+            'salary': _num_to_str(r[salary_i]) if (salary_i is not None and salary_i < len(r)) else '',
+            'equity': cell(equity_i),
+            'promotion': '\n'.join(promotions),
+            'reward_punishment': cell(reward_i),
+        }
+    _personnel_cache['mtime'] = mtime
+    _personnel_cache['data'] = data
+    return data
+
+
+def get_personnel_file(employee_id: str) -> Optional[Dict]:
+    """获取员工档案：优先取库；没有则从 Excel / 在职人员初始化后落库"""
+    emp = str(employee_id or '').strip()
+    if not emp:
+        return None
+    c = _conn()
+    row = c.execute('SELECT * FROM personnel_files WHERE employee_id=?', (emp,)).fetchone()
+    if row is None:
+        # 库中无档案：用当前在职人员信息建一条空白档案（供后续编辑），不再读取 Excel
+        s = c.execute('SELECT name, department FROM staff WHERE employee_id=? LIMIT 1',
+                      (emp,)).fetchone()
+        base = {
+            'employee_id': emp,
+            'name': s['name'] if s else '',
+            'department': s['department'] if s else '',
+            'join_date': '', 'title': '', 'level': '', 'salary': '',
+            'equity': '', 'promotion': '', 'reward_punishment': ''
+        }
+        c.execute(
+            'INSERT OR IGNORE INTO personnel_files'
+            '(employee_id,name,department,join_date,title,level,salary,equity,promotion,reward_punishment,updated_at)'
+            ' VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+            (emp, base.get('name', ''), base.get('department', ''), base.get('join_date', ''),
+             base.get('title', ''), base.get('level', ''), base.get('salary', ''),
+             base.get('equity', ''), base.get('promotion', ''), base.get('reward_punishment', ''),
+             _now_minute()))
+        c.commit()
+        row = c.execute('SELECT * FROM personnel_files WHERE employee_id=?', (emp,)).fetchone()
+    rec = dict(row) if row else None
+    if rec:
+        rec['seniority'] = _calc_seniority(rec.get('join_date', ''))
+        # 电话取自当前在职人员数据（staff 表），实时读取，便于与部门信息保持一致
+        s = c.execute('SELECT phone FROM staff WHERE employee_id=? LIMIT 1', (emp,)).fetchone()
+        rec['phone'] = (s['phone'] if s and s['phone'] else '')
+    return rec
+
+
+def update_personnel_file(employee_id: str, fields: Dict) -> bool:
+    """更新员工档案（join_date/title/level/salary/equity/promotion/reward_punishment）"""
+    emp = str(employee_id or '').strip()
+    if not emp:
+        return False
+    get_personnel_file(emp)  # 确保记录存在
+    c = _conn()
+    allowed = ('join_date', 'title', 'level', 'salary', 'equity',
+               'promotion', 'reward_punishment')
+    sets, vals = [], []
+    for k in allowed:
+        if k in fields:
+            sets.append(f'{k}=?')
+            vals.append(str(fields.get(k, '')))
+    if not sets:
+        return True
+    sets.append('updated_at=?')
+    vals.append(_now_minute())
+    vals.append(emp)
+    c.execute(f'UPDATE personnel_files SET {", ".join(sets)} WHERE employee_id=?', vals)
+    c.commit()
+    return True
+
+
+def import_personnel_files_from_excel_once() -> int:
+    """一次性把 档案信息.xlsx 全部导入 personnel_files，并为所有在职人员补齐空白档案。
+    完成后写入 meta 标记，之后程序不再读取该 Excel（可安全删除该文件）。"""
+    if _meta_get('personnel_files_imported'):
+        return 0
+    data = _load_personnel_excel()
+    c = _conn()
+    now = _now_minute()
+    for emp, base in data.items():
+        c.execute(
+            'INSERT OR IGNORE INTO personnel_files'
+            '(employee_id,name,department,join_date,title,level,salary,equity,promotion,reward_punishment,updated_at)'
+            ' VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+            (emp, base.get('name', ''), base.get('department', ''), base.get('join_date', ''),
+             base.get('title', ''), base.get('level', ''), base.get('salary', ''),
+             base.get('equity', ''), base.get('promotion', ''), base.get('reward_punishment', ''),
+             now))
+    # 在职人员若不在 Excel 中，也建一条空白档案，保证人人有档案
+    for r in c.execute('SELECT employee_id, name, department FROM staff'):
+        c.execute('INSERT OR IGNORE INTO personnel_files(employee_id,name,department,updated_at)'
+                  ' VALUES(?,?,?,?)',
+                  (r['employee_id'], r['name'], r['department'], now))
+    c.commit()
+    _meta_set('personnel_files_imported')
+    return c.execute('SELECT COUNT(*) AS n FROM personnel_files').fetchone()['n']
+
+
 # ===== Action Items =====
 def get_all_action_items() -> List[Dict]:
     c = _conn()
@@ -755,6 +1105,9 @@ def init_all_data() -> None:
     c.commit()
     _ensure_schema_columns()
     _migrate_all()
+    _migrate_users_from_json()       # users.json -> users 表（一次性）
+    bootstrap_admin_if_empty()       # 全新部署可用环境变量创建初始管理员
+    import_personnel_files_from_excel_once()  # 档案信息.xlsx -> personnel_files（一次性）
 
 
 # ===== Excel 导入导出 =====

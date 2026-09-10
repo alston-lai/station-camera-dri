@@ -153,11 +153,39 @@ docker run -d --name dri --restart unless-stopped \
 
 ### 数据持久化
 
-- `data/` 目录以数据卷挂载到容器 `/app/data`：
-  - `users.json`（账号白名单，必须存在，否则无法登录）；
-  - 各业务 `*.json`（首次启动用于自动导入 SQLite）；
-  - 运行后生成的 `app.db`（SQLite 数据库）持久化在宿主机 `data/` 下，随容器重建保留。
-- `data/app.db*` 与 `data/backups/` 已在 `.gitignore` / `.dockerignore` 中排除，不会进镜像。
+- 用户、员工档案等数据现在**全部保存在 `data/app.db`（SQLite）**中：
+  - 用户表 `users`（替代原 `data/users.json`，该文件已移除）；
+  - 员工档案表 `personnel_files`（首次启动会从 `档案信息.xlsx` 一次性导入后即可删除该文件）。
+- `data/` 目录以数据卷挂载到容器 `/app/data`，`app.db` 随容器重建保留。
+- `data/app.db*`、`data/backups/`、`data/users.json` 已在 `.gitignore` / `.dockerignore` 中排除，不会进镜像。
+
+### 安全与运维
+
+- **文件权限**：建议 `chmod 700 data && chmod 600 data/app.db*`（限制同机其他账号读取）。
+- **HTTPS**：正式环境建议前置反向代理提供 HTTPS，并设置 `SESSION_COOKIE_SECURE=true`；
+  若临时以明文 HTTP 访问，请将其设为 `false`，否则无法登录。
+- **用户管理入口**：仅工号 `12214253`（可用环境变量 `ADMIN_EMPLOYEE_ID` 覆盖）在首页可见
+  “用户管理”卡片；其他用户看不到、直接访问也会被重定向。进入 `/admin/users` 后**每次都要输入管理密码**
+  （环境变量 `ADMIN_PASSWORD`，默认 `DLJ360781dlj`，请务必修改）；密码校验通过后签发短期内存 token，
+  页面刷新或重新进入即失效，因此每次进入都需重新验证。
+- **加密备份**（需 `openssl`，镜像中已安装）：
+  ```bash
+  # 一键加密备份
+  BACKUP_PASSWORD='你的备份密码' python3 scripts/backup.py
+  # 或
+  BACKUP_PASSWORD='你的备份密码' python3 scripts/db_admin.py backup
+  ```
+  输出 `data/backups/app_<时间>.db.enc`（AES-256-CBC，权限 600）。未设置 `BACKUP_PASSWORD` 时拒绝生成明文备份。
+- **一键恢复**（`scripts/restore.py`）：
+  ```bash
+  python3 scripts/restore.py --list                       # 查看可用备份
+  BACKUP_PASSWORD='口令' python3 scripts/restore.py --latest --dry-run   # 只校验不覆盖
+  BACKUP_PASSWORD='口令' python3 scripts/restore.py --latest             # 正式恢复（会确认）
+  ```
+  流程：解密 → 完整性校验 → 把当前库另存为 `app.db.before_restore_*` → 覆盖 `app.db` → 清理 `-wal/-shm` → 权限 600。
+  **执行前请先停服务**（本地 Ctrl+C / `docker compose stop dri`）。
+- **全新部署**（数据库无用户时）：可设置环境变量 `ADMIN_EMPLOYEE_ID`（及可选 `ADMIN_NAME`）
+  自动创建一个初始管理员，避免被锁在系统外。
 
 ### 常用运维命令
 

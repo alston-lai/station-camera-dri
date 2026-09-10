@@ -10,10 +10,20 @@ services:
     environment:
       # 生产保持为空；如需调试模板热重载可设 true
       FLASK_DEBUG: ""
-      # 如需 HTTPS 会话 Cookie：设 true（需在前面配置 HTTPS）
-      SESSION_COOKIE_SECURE: "false"
+      # 走 HTTPS 时必须为 true（会话 Cookie 仅经 HTTPS 传输）。
+      # 注意：若直接以明文 HTTP 访问，请临时设为 false，否则无法登录。
+      SESSION_COOKIE_SECURE: "true"
+      # 用户管理入口密码（务必修改）
+      ADMIN_PASSWORD: "DLJ360781dlj"
+      # 加密备份口令（用于 scripts/backup.py，务必修改并妥善保管）
+      BACKUP_PASSWORD: "change-me-please"
+      # 可选：固定会话签名密钥（不设则在 data/.secret_key 自动生成并持久化）
+      # SECRET_KEY: "请填入一段随机字符串"
+      # 可选：当数据库中没有用户时，用该工号自动创建一个初始管理员，避免全新部署被锁在外面
+      # ADMIN_EMPLOYEE_ID: "12214253"
+      # ADMIN_NAME: "Admin"
     volumes:
-      # 把宿主机 data 目录挂进去，数据库(data/app.db)与 users.json 持久化并随容器重建保留
+      # 把宿主机 data 目录挂进去，数据库(data/app.db)持久化并随容器重建保留
       - ./data:/app/data
     working_dir: /app/scripts
     command: gunicorn -b 0.0.0.0:8000 app:app

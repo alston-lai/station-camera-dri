@@ -70,6 +70,21 @@
         </div>
         <span class="nav-module-arrow">进入 →</span>
     </a>
+
+    {% if session.get('user', {}).get('employee_id') == '12214253' %}
+    <a href="/admin/users" class="nav-module-card nav-module-gray">
+        <div class="nav-module-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+        </div>
+        <div class="nav-module-info">
+            <div class="nav-module-title">用户管理</div>
+            <div class="nav-module-desc">用户与权限管理（需密码）</div>
+        </div>
+        <span class="nav-module-arrow">进入 →</span>
+    </a>
+    {% endif %}
 </div>
 
 <!-- 最近 Action Items -->
@@ -220,6 +235,7 @@
 .nav-module-green .nav-module-icon { background: linear-gradient(135deg, #34C759 0%, #30D158 100%); }
 .nav-module-purple .nav-module-icon { background: linear-gradient(135deg, #AF52DE 0%, #BF5AF2 100%); }
 .nav-module-orange .nav-module-icon { background: linear-gradient(135deg, #FF9500 0%, #FF9F0A 100%); }
+.nav-module-gray .nav-module-icon { background: linear-gradient(135deg, #6E6E73 0%, #8E8E93 100%); }
 .nav-module-info {
     flex: 1;
 }
@@ -243,6 +259,7 @@
 .nav-module-green .nav-module-arrow { color: #34C759; }
 .nav-module-purple .nav-module-arrow { color: #AF52DE; }
 .nav-module-orange .nav-module-arrow { color: #FF9500; }
+.nav-module-gray .nav-module-arrow { color: #6E6E73; }
 
 /* 最近内容区域 */
 .recent-section {

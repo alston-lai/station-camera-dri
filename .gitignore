@@ -20,6 +20,7 @@ data/app.db
 data/app.db-wal
 data/app.db-shm
 data/backups/
+data/users.json
 
 # 图片/临时导入文件（如需纳入请调整）
 *.png

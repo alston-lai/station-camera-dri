@@ -10,6 +10,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# openssl 用于加密备份（scripts/backup.py）
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 # 先装依赖，便于利用构建缓存
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

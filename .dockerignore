@@ -13,6 +13,7 @@ data/app.db
 data/app.db-wal
 data/app.db-shm
 data/backups
+data/users.json
 
 # 测试/临时
 *.png

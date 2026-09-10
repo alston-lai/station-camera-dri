@@ -81,15 +81,11 @@ def cmd_query(sql):
 
 
 def cmd_backup():
-    os.makedirs(BACKUP_DIR, exist_ok=True)
-    stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    dst = os.path.join(BACKUP_DIR, f'app_{stamp}.db')
-    shutil.copy2(DB_PATH, dst)
-    for suffix in ('-wal', '-shm'):
-        src = DB_PATH + suffix
-        if os.path.exists(src):
-            shutil.copy2(src, dst + suffix)
-    print('备份完成:', dst)
+    """加密备份数据库到 data/backups/（需环境变量 BACKUP_PASSWORD）"""
+    sys.path.insert(0, SCRIPT_DIR)
+    from backup import make_backup
+    dst = make_backup(db_path=DB_PATH, out_dir=BACKUP_DIR)
+    print('加密备份完成:', dst)
 
 
 def cmd_export():

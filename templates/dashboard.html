@@ -657,8 +657,21 @@
 // 从模板传入的权限变量
 const canEditDept = {{ 'true' if can_edit else 'false' }};
 
+// 员工档案可访问部门（由后端根据 can_edit_personnel_file 解析后传入）
+const personnelDepts = {{ (personnel_depts or []) | tojson }};
+
 // 缓存最近一次详情数据，供“编辑”弹窗回填
 let lastDetailData = null;
+
+// 当前用户是否可查看某部门员工的档案（决定“详细”按钮是否显示）
+function canViewPersonnelFile(dept) {
+    return (personnelDepts || []).indexOf(dept) !== -1;
+}
+
+// 打开员工档案页面（新标签页）
+function openPersonnelFile(employee_id) {
+    window.open('/personnel-file/' + encodeURIComponent(employee_id), '_blank');
+}
 
 
 function loadDetailData() {
@@ -1167,6 +1180,7 @@ function renderCurrentList(body) {
             <td>${escHtml(item.r.phone)}</td>
             <td>${escHtml(item.r.email)}</td>
             <td class="record-mgr-actions">
+                ${canViewPersonnelFile(item.r.department) ? `<button type="button" class="record-mgr-view-btn" onclick="openPersonnelFile(${q(item.r.employee_id)})">详细</button>` : ''}
                 <button type="button" class="record-mgr-edit-btn" onclick="editCurrentRow(${item.i})">编辑</button>
                 <button type="button" class="record-mgr-del-btn" onclick="deleteCurrentRow(${item.i})">删除</button>
             </td>
@@ -1552,6 +1566,8 @@ function importDepartment(input) {
 }
 .record-mgr-edit-btn { color: #0071e3; }
 .record-mgr-edit-btn:hover { background: #eef5ff; }
+.record-mgr-view-btn { color: #0a7d3c; }
+.record-mgr-view-btn:hover { background: #eafaef; }
 .record-mgr-del-btn { color: #ff3b30; }
 .record-mgr-del-btn:hover { background: #fff5f5; }
 .record-mgr-note {

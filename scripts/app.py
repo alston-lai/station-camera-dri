@@ -21,6 +21,8 @@ from data_manager import (
     add_staff_to_department, remove_staff_from_department, update_department_members, add_left_record,
     add_joined_record, find_staff_id_by_name, update_staff_member,
     update_department_record, delete_department_record,
+    get_personnel_file, update_personnel_file,
+    get_all_users, get_user, upsert_user, delete_user,
     get_all_action_items, add_action_item, update_action_item, delete_action_item,
     get_all_info_list, create_info_table, add_info_row, update_info_row, delete_info_table, delete_info_row,
     get_collector_sheets, get_collector_sheet, create_collector_sheet,
@@ -48,22 +50,26 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 
 def _load_or_create_secret_key() -> str:
-    """读取环境变量 SECRET_KEY；否则从项目根目录的 .secret_key 读取；
-    都没有则生成一个随机值并落盘保存（避免重启后会话全部失效）。"""
+    """读取环境变量 SECRET_KEY；否则从 data/.secret_key（旧版在项目根）读取；
+    都没有则生成一个随机值并落盘保存（避免重启后会话全部失效）。
+    Docker 场景下 data/ 是持久化卷，密钥可随容器重建保留。"""
     env_key = os.environ.get('SECRET_KEY')
     if env_key:
         return env_key
-    key_file = os.path.join(PROJECT_DIR, '.secret_key')
-    if os.path.exists(key_file):
-        try:
-            with open(key_file, 'r', encoding='utf-8') as f:
-                k = f.read().strip()
-            if k:
-                return k
-        except OSError:
-            pass
+    key_file = os.path.join(DATA_DIR, '.secret_key')
+    legacy_key_file = os.path.join(PROJECT_DIR, '.secret_key')
+    for kf in (key_file, legacy_key_file):
+        if os.path.exists(kf):
+            try:
+                with open(kf, 'r', encoding='utf-8') as f:
+                    k = f.read().strip()
+                if k:
+                    return k
+            except OSError:
+                pass
     k = secrets.token_hex(32)
     try:
+        os.makedirs(DATA_DIR, exist_ok=True)
         with open(key_file, 'w', encoding='utf-8') as f:
             f.write(k)
         os.chmod(key_file, 0o600)
@@ -109,6 +115,11 @@ def nl2br(value):
 app.jinja_env.filters['nl2br'] = nl2br
 
 DEPARTMENTS = ['五部', '六部', '七部', '八部']
+
+# 用户管理入口密码（可用环境变量 ADMIN_PASSWORD 覆盖，生产环境务必设置）
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD') or 'DLJ360781dlj'
+# 仅该工号可见/可进入用户管理（可用环境变量 ADMIN_EMPLOYEE_ID 覆盖）
+ADMIN_EMPLOYEE_ID = os.environ.get('ADMIN_EMPLOYEE_ID') or '12214253'
 
 
 def get_client_ip():
@@ -190,49 +201,62 @@ def _clear_login_failures(key: str):
 
 
 def check_user_in_whitelist(employee_id):
-    """检查工号是否在 users.json 白名单中"""
-    users_file = os.path.join(DATA_DIR, 'users.json')
-    
-    if not os.path.exists(users_file):
-        return False, None
-    
-    with open(users_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-        for user in data.get('users', []):
-            if user['employee_id'] == employee_id:
-                return True, user
+    """检查工号是否在用户表（app.db 的 users 表）中"""
+    user = get_user(employee_id)
+    if user:
+        return True, user
     return False, None
 
 
 def get_user_permissions(employee_id, name):
     """根据工号获取用户权限配置，未配置的工号使用默认权限"""
-    users_file = os.path.join(DATA_DIR, 'users.json')
-    
-    # 默认权限：所有人都可以编辑数据收集，其他需要匹配 users.json
+    # 默认权限：所有人都可以编辑数据收集，其他需要匹配用户表
     default_user = {
         'employee_id': employee_id,
         'name': name,
         'can_edit_department': False,
         'can_edit_action_items': False,
         'can_edit_info_list': False,
-        'can_edit_collector': True  # 数据收集默认开启
+        'can_edit_collector': True,  # 数据收集默认开启
+        'can_edit_personnel_file': 'NO'  # 员工档案默认无权限
     }
-    
-    if os.path.exists(users_file):
-        with open(users_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            for user in data.get('users', []):
-                if user['employee_id'] == employee_id:
-                    # 合并配置：默认权限 + users.json 中的额外权限
-                    result = default_user.copy()
-                    result['name'] = name  # 使用登录时输入的姓名
-                    result['can_edit_department'] = user.get('can_edit_department', False)
-                    result['can_edit_action_items'] = user.get('can_edit_action_items', False)
-                    result['can_edit_info_list'] = user.get('can_edit_info_list', False)
-                    result['can_edit_collector'] = True  # 数据收集始终可编辑
-                    return result
-    
+
+    u = get_user(employee_id)
+    if u:
+        result = default_user.copy()
+        result['name'] = name  # 使用登录时输入的姓名
+        result['can_edit_department'] = bool(u.get('can_edit_department'))
+        result['can_edit_action_items'] = bool(u.get('can_edit_action_items'))
+        result['can_edit_info_list'] = bool(u.get('can_edit_info_list'))
+        result['can_edit_collector'] = True  # 数据收集始终可编辑
+        result['can_edit_personnel_file'] = str(u.get('can_edit_personnel_file', 'NO')).strip()
+        return result
+
     return default_user
+
+
+# ===== 员工档案权限（can_edit_personnel_file）=====
+def personnel_allowed_depts(policy) -> set:
+    """解析员工档案权限策略为可访问部门集合。
+    ALL=全部部门；NO=无权限；其它按“部”关键字匹配（如 七部八部 / 五部 / 六部）。"""
+    if not policy:
+        return set()
+    v = str(policy).strip()
+    if v.upper() == 'ALL':
+        return set(DEPT_SHORT_NAMES)
+    if v.upper() == 'NO':
+        return set()
+    return {d for d in DEPT_SHORT_NAMES if d in v}
+
+
+def can_access_personnel_file(user, dept) -> bool:
+    """判断当前用户对某部门员工的档案是否有查阅/编辑权限"""
+    if not user:
+        return False
+    policy = user.get('can_edit_personnel_file', 'NO')
+    if str(policy).upper() == 'ALL':
+        return True
+    return dept in personnel_allowed_depts(policy)
 
 
 def login_required(f):
@@ -309,6 +333,127 @@ def api_current_user():
     return jsonify({'logged_in': False})
 
 
+# ===== 用户管理（仅 ADMIN_EMPLOYEE_ID 可见/可进入，且每次进入需密码）=====
+# 说明：不使用 session 持久化“已解锁”，而是在密码校验通过后签发一个
+# 短期有效的随机 token（仅存于服务器内存），由管理页面保存在 JS 变量里。
+# 页面一刷新/重新进入，JS 变量即丢失，因此“每次进入都需要输入密码”。
+
+_ADMIN_TOKENS = {}          # token -> 过期时间戳
+_ADMIN_TOKEN_TTL = 30 * 60  # token 有效期（秒）
+_admin_lock = threading.RLock()
+
+
+def _is_admin_employee() -> bool:
+    """当前登录用户是否为指定的管理员工号"""
+    user = session.get('user') or {}
+    return str(user.get('employee_id', '')) == ADMIN_EMPLOYEE_ID
+
+
+def _prune_admin_tokens():
+    now = time.time()
+    with _admin_lock:
+        for t in [t for t, exp in _ADMIN_TOKENS.items() if exp < now]:
+            _ADMIN_TOKENS.pop(t, None)
+
+
+def _issue_admin_token() -> str:
+    token = secrets.token_urlsafe(24)
+    with _admin_lock:
+        _ADMIN_TOKENS[token] = time.time() + _ADMIN_TOKEN_TTL
+    return token
+
+
+def _admin_token_ok() -> bool:
+    """校验请求头中的 X-Admin-Token 是否有效"""
+    token = (request.headers.get('X-Admin-Token') or '').strip()
+    if not token:
+        return False
+    with _admin_lock:
+        exp = _ADMIN_TOKENS.get(token)
+        if exp is None or exp < time.time():
+            _ADMIN_TOKENS.pop(token, None)
+            return False
+    return True
+
+
+def _admin_request_ok() -> bool:
+    """管理接口鉴权：必须是指定工号，且携带有效 token"""
+    return _is_admin_employee() and _admin_token_ok()
+
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    """用户管理入口：仅指定工号可见；页面内每次进入都需输入密码"""
+    if not _is_admin_employee():
+        return redirect(url_for('index'))
+    return render_template('admin_users.html')
+
+
+@app.route('/api/admin/unlock', methods=['POST'])
+def api_admin_unlock():
+    """校验管理密码，成功后签发短期 token（不写入 session）"""
+    if not _is_admin_employee():
+        return jsonify({'success': False, 'message': '无权限'}), 403
+    data = request.json or {}
+    pwd = str(data.get('password', ''))
+    if pwd and secrets.compare_digest(pwd, ADMIN_PASSWORD):
+        _prune_admin_tokens()
+        return jsonify({'success': True, 'token': _issue_admin_token()})
+    return jsonify({'success': False, 'message': '密码错误'}), 403
+
+
+@app.route('/api/admin/lock', methods=['POST'])
+def api_admin_lock():
+    """销毁当前 token（前端离开页面时调用）"""
+    token = (request.headers.get('X-Admin-Token') or '').strip()
+    with _admin_lock:
+        _ADMIN_TOKENS.pop(token, None)
+    return jsonify({'success': True})
+
+
+@app.route('/api/admin/users', methods=['GET'])
+def api_admin_users_list():
+    if not _admin_request_ok():
+        return jsonify({'success': False, 'message': '未通过管理员验证'}), 403
+    return jsonify({'success': True, 'users': get_all_users()})
+
+
+@app.route('/api/admin/users', methods=['POST'])
+def api_admin_user_save():
+    if not _admin_request_ok():
+        return jsonify({'success': False, 'message': '未通过管理员验证'}), 403
+    data = request.json or {}
+    employee_id = str(data.get('employee_id', '')).strip()
+    if not employee_id:
+        return jsonify({'success': False, 'message': '工号不能为空'}), 400
+    upsert_user({
+        'employee_id': employee_id,
+        'name': data.get('name', ''),
+        'can_edit_department': data.get('can_edit_department', False),
+        'can_edit_action_items': data.get('can_edit_action_items', False),
+        'can_edit_info_list': data.get('can_edit_info_list', False),
+        'can_edit_personnel_file': data.get('can_edit_personnel_file', 'NO')
+    })
+    admin = session.get('user', {})
+    add_history(f"用户管理: 保存用户 {data.get('name', '')}({employee_id})",
+                admin.get('name', 'admin'), admin.get('employee_id', ''), get_client_ip())
+    return jsonify({'success': True})
+
+
+@app.route('/api/admin/users/<employee_id>', methods=['DELETE'])
+def api_admin_user_delete(employee_id):
+    if not _admin_request_ok():
+        return jsonify({'success': False, 'message': '未通过管理员验证'}), 403
+    ok = delete_user(employee_id)
+    if not ok:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+    admin = session.get('user', {})
+    add_history(f"用户管理: 删除用户 {employee_id}",
+                admin.get('name', 'admin'), admin.get('employee_id', ''), get_client_ip())
+    return jsonify({'success': True})
+
+
 # ===== 首页 =====
 
 @app.route('/')
@@ -325,7 +470,10 @@ def index():
 def department():
     """部门人员信息页面"""
     user = get_current_user()
-    return render_template('dashboard.html', departments=DEPARTMENTS, can_edit=user.get('can_edit_department', False))
+    allowed = sorted(personnel_allowed_depts(user.get('can_edit_personnel_file', 'NO')))
+    return render_template('dashboard.html', departments=DEPARTMENTS,
+                           can_edit=user.get('can_edit_department', False),
+                           personnel_depts=allowed)
 
 
 @app.route('/api/department/summary')
@@ -654,6 +802,49 @@ def api_department_import():
         return jsonify({'success': True, 'result': result})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ===== 员工档案（人事档案）=====
+
+@app.route('/personnel-file/<employee_id>')
+@login_required
+def personnel_file(employee_id):
+    """员工档案信息页面（需 can_edit_personnel_file 对应部门权限）"""
+    user = get_current_user()
+    record = get_personnel_file(employee_id)
+    if not record:
+        return "未找到该员工档案", 404
+    if not can_access_personnel_file(user, record.get('department', '')):
+        return redirect(url_for('department'))
+    return render_template('personnel_file.html', record=record, can_edit=True)
+
+
+@app.route('/api/personnel-file/<employee_id>', methods=['POST'])
+def api_personnel_file_update(employee_id):
+    """编辑员工档案"""
+    if 'user' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    user = session['user']
+    record = get_personnel_file(employee_id)
+    if not record:
+        return jsonify({'success': False, 'message': '未找到该员工档案'}), 404
+    if not can_access_personnel_file(user, record.get('department', '')):
+        return jsonify({'success': False, 'message': '您没有权限编辑该员工档案'}), 403
+
+    data = request.json or {}
+    update_personnel_file(employee_id, {
+        'join_date': data.get('join_date', ''),
+        'title': data.get('title', ''),
+        'level': data.get('level', ''),
+        'salary': data.get('salary', ''),
+        'equity': data.get('equity', ''),
+        'promotion': data.get('promotion', ''),
+        'reward_punishment': data.get('reward_punishment', '')
+    })
+    add_history(f"更新员工档案: {record.get('name', employee_id)}({employee_id})",
+                user.get('name', user.get('employee_id', 'Unknown')),
+                user.get('employee_id', ''), get_client_ip())
+    return jsonify({'success': True})
 
 
 # ===== Action Items =====

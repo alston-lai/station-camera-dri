@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+{% block title %}用户管理{% endblock %}
+
+{% block content %}
+<style>
+.au-header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+.au-title { font-size:24px; font-weight:700; color:#1d1d1f; margin:0; }
+.au-sub { font-size:13px; color:#86868b; margin-top:6px; }
+.au-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.au-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:9px; font-size:14px; font-weight:500; cursor:pointer; border:none; }
+.au-primary { background:#0071E3; color:#fff; }
+.au-primary:hover { background:#0077ED; }
+.au-plain { background:#f5f5f7; color:#1d1d1f; }
+.au-plain:hover { background:#e8e8ed; }
+.au-danger { background:#FF3B30; color:#fff; }
+.au-danger:hover { background:#E0342A; }
+
+.au-toolbar { margin-bottom:12px; }
+.au-search { width:280px; max-width:100%; padding:9px 14px; border:1px solid #d2d2d7; border-radius:9px; font-size:14px; }
+.au-search:focus { outline:none; border-color:#0071E3; }
+
+.au-card { background:#fff; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,.06); overflow:hidden; }
+table.au-table { width:100%; border-collapse:collapse; }
+.au-table th, .au-table td { padding:10px 14px; text-align:left; border-bottom:1px solid #f0f0f2; font-size:14px; }
+.au-table th { background:#fafafa; color:#86868b; font-size:12px; font-weight:600; white-space:nowrap; }
+.au-table tbody tr:hover { background:#fafafc; }
+.au-tag { display:inline-block; padding:2px 8px; border-radius:6px; font-size:12px; font-weight:600; }
+.au-yes { background:#e6f8ee; color:#0a7d3c; }
+.au-no { background:#f2f2f5; color:#8a8a92; }
+.au-policy { font-weight:600; color:#0071E3; }
+.au-op button { background:none; border:none; cursor:pointer; font-size:13px; padding:3px 7px; border-radius:6px; }
+.au-op .edit { color:#0071E3; } .au-op .edit:hover { background:#eef5ff; }
+.au-op .del { color:#ff3b30; } .au-op .del:hover { background:#fff5f5; }
+
+.au-modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:1000; }
+.au-modal.show { display:flex; }
+.au-card-modal { background:#fff; border-radius:18px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; padding:1.5rem 1.75rem; }
+.au-card-modal h3 { margin:0 0 1rem; font-size:18px; color:#1d1d1f; }
+.au-group { margin-bottom:1rem; }
+.au-group label { display:block; font-size:13px; color:#86868b; margin-bottom:6px; }
+.au-group input[type=text], .au-group input[type=password] { width:100%; box-sizing:border-box; padding:9px 12px; border:1px solid #d2d2d7; border-radius:9px; font-size:14px; }
+.au-check { display:flex; align-items:center; gap:8px; font-size:14px; color:#1d1d1f; margin-bottom:8px; }
+.au-modal-actions { display:flex; justify-content:flex-end; gap:.75rem; padding-top:1rem; border-top:1px solid #f0f0f2; }
+.au-hint { font-size:12px; color:#86868b; margin-top:4px; }
+
+/* 每次进入都要输入的密码闸门 */
+.au-gate { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:2000; }
+.au-gate.hidden { display:none; }
+.au-gate-card { background:#fff; border-radius:18px; width:100%; max-width:400px; padding:1.75rem; box-shadow:0 20px 50px rgba(0,0,0,.3); }
+.au-gate-card h3 { margin:0 0 .4rem; font-size:19px; color:#1d1d1f; }
+.au-gate-card p { margin:0 0 1.1rem; font-size:13px; color:#86868b; }
+.au-gate-input { width:100%; box-sizing:border-box; padding:11px 14px; border:1px solid #d2d2d7; border-radius:10px; font-size:15px; margin-bottom:.6rem; }
+.au-gate-input:focus { outline:none; border-color:#0071E3; }
+.au-gate-err { color:#ff3b30; font-size:13px; min-height:18px; margin-bottom:.5rem; }
+</style>
+
+<div class="au-header">
+    <div>
+        <h1 class="au-title">用户管理</h1>
+        <p class="au-sub">管理登录用户及其权限（数据保存在 app.db）</p>
+    </div>
+    <div class="au-actions">
+        <button class="au-btn au-primary" onclick="openUserModal()">＋ 新增用户</button>
+        <button class="au-btn au-plain" onclick="lockAdmin()">锁定并返回</button>
+        <a href="/" class="au-btn au-plain" style="text-decoration:none;">返回首页</a>
+    </div>
+</div>
+
+<!-- 密码闸门：每次进入本页都会显示，验证通过后才加载数据 -->
+<div class="au-gate" id="auGate">
+    <div class="au-gate-card">
+        <h3>用户管理 · 身份验证</h3>
+        <p>请输入管理密码后继续（每次进入都需要输入）</p>
+        <input type="password" id="auGatePwd" class="au-gate-input" autocomplete="off" autofocus
+               onkeydown="if(event.key==='Enter'){unlockAdmin();}">
+        <div class="au-gate-err" id="auGateErr"></div>
+        <button type="button" class="au-btn au-primary" style="width:100%;" onclick="unlockAdmin()">进入</button>
+    </div>
+</div>
+
+<div class="au-toolbar">
+    <input type="text" id="auSearch" class="au-search" placeholder="搜索：姓名 / 工号 / 权限…" oninput="renderUsers()">
+</div>
+
+<div class="au-card">
+    <table class="au-table">
+        <thead>
+            <tr>
+                <th>工号</th><th>姓名</th><th>部门信息</th><th>Action Items</th>
+                <th>信息列表</th><th>员工档案权限</th><th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="auBody"><tr><td colspan="7" style="text-align:center;color:#86868b;padding:2rem;">加载中…</td></tr></tbody>
+    </table>
+</div>
+
+<div class="au-modal" id="auModal">
+    <div class="au-card-modal">
+        <h3 id="auModalTitle">新增用户</h3>
+        <form id="auForm">
+            <div class="au-group">
+                <label>工号</label>
+                <input type="text" name="employee_id" id="auEmp" required>
+            </div>
+            <div class="au-group">
+                <label>姓名</label>
+                <input type="text" name="name" required>
+            </div>
+            <div class="au-group">
+                <label>权限</label>
+                <label class="au-check"><input type="checkbox" name="can_edit_department"> 部门信息可编辑</label>
+                <label class="au-check"><input type="checkbox" name="can_edit_action_items"> Action Items 可编辑</label>
+                <label class="au-check"><input type="checkbox" name="can_edit_info_list"> 信息列表可编辑</label>
+            </div>
+            <div class="au-group">
+                <label>员工档案权限</label>
+                <input type="text" name="can_edit_personnel_file" list="pfPolicies" placeholder="ALL / NO / 五部 / 七部八部 …">
+                <datalist id="pfPolicies">
+                    <option value="ALL"></option>
+                    <option value="NO"></option>
+                    <option value="五部"></option>
+                    <option value="六部"></option>
+                    <option value="七部"></option>
+                    <option value="八部"></option>
+                    <option value="七部八部"></option>
+                </datalist>
+                <div class="au-hint">ALL=全部；NO=无；按“部”匹配，如 七部八部 表示七部与八部。</div>
+            </div>
+            <div class="au-modal-actions">
+                <button type="button" class="au-btn au-plain" onclick="closeUserModal()">取消</button>
+                <button type="submit" class="au-btn au-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var AU_USERS = [];
+var AU_EDIT = null;
+// 管理员 token：仅保存在当前页面的 JS 变量中，刷新/重新进入即丢失，
+// 因此“每次进入都需要重新输入密码”。
+var ADMIN_TOKEN = '';
+
+// 统一的管理接口请求头（携带 token）
+function authHeaders(extra) {
+    var h = extra || {};
+    h['X-Admin-Token'] = ADMIN_TOKEN;
+    return h;
+}
+
+// 显示 / 隐藏密码闸门
+function showGate(msg) {
+    document.getElementById('auGate').classList.remove('hidden');
+    document.getElementById('auGateErr').textContent = msg || '';
+    var pwd = document.getElementById('auGatePwd');
+    if (pwd) { pwd.value = ''; pwd.focus(); }
+}
+function hideGate() {
+    document.getElementById('auGate').classList.add('hidden');
+}
+
+// 校验密码 -> 获取 token -> 加载用户列表
+function unlockAdmin() {
+    var pwd = document.getElementById('auGatePwd').value;
+    fetch('/api/admin/unlock', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({password: pwd})
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.success && data.token) {
+            ADMIN_TOKEN = data.token;
+            hideGate();
+            loadUsers();
+        } else {
+            showGate(data.message || '密码错误');
+        }
+    })
+    .catch(function () { showGate('请求失败'); });
+}
+
+function esc(s) {
+    s = String(s == null ? '' : s);
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function q(s) {
+    s = String(s == null ? '' : s);
+    return "'" + s.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+}
+
+function loadUsers() {
+    fetch('/api/admin/users', {headers: authHeaders()})
+        .then(function (r) {
+            if (r.status === 403) { showGate('验证已失效，请重新输入密码'); return null; }
+            return r.json();
+        })
+        .then(function (data) {
+            if (!data) return;
+            if (!data.success) { alert(data.message || '加载失败'); return; }
+            AU_USERS = data.users || [];
+            renderUsers();
+        })
+        .catch(function () { alert('加载失败'); });
+}
+
+function badge(v) {
+    return v ? '<span class="au-tag au-yes">是</span>' : '<span class="au-tag au-no">否</span>';
+}
+
+function renderUsers() {
+    var kw = (document.getElementById('auSearch').value || '').trim().toLowerCase();
+    var body = document.getElementById('auBody');
+    var list = AU_USERS.filter(function (u) {
+        if (!kw) return true;
+        return [u.employee_id, u.name, u.can_edit_personnel_file].join(' ').toLowerCase().indexOf(kw) !== -1;
+    });
+    if (!list.length) {
+        body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#86868b;padding:2rem;">' +
+            (AU_USERS.length ? '未找到匹配用户' : '暂无用户，点击“新增用户”添加') + '</td></tr>';
+        return;
+    }
+    body.innerHTML = list.map(function (u) {
+        var pol = u.can_edit_personnel_file || 'NO';
+        var polCls = (String(pol).toUpperCase() === 'NO') ? 'au-no' : 'au-yes';
+        return '<tr>' +
+            '<td>' + esc(u.employee_id) + '</td>' +
+            '<td>' + esc(u.name) + '</td>' +
+            '<td>' + badge(u.can_edit_department) + '</td>' +
+            '<td>' + badge(u.can_edit_action_items) + '</td>' +
+            '<td>' + badge(u.can_edit_info_list) + '</td>' +
+            '<td><span class="au-tag ' + polCls + '">' + esc(pol) + '</span></td>' +
+            '<td class="au-op">' +
+                '<button class="edit" onclick="openUserModal(' + q(u.employee_id) + ')">编辑</button>' +
+                '<button class="del" onclick="deleteUser(' + q(u.employee_id) + ',' + q(u.name) + ')">删除</button>' +
+            '</td>' +
+        '</tr>';
+    }).join('');
+}
+
+function openUserModal(employee_id) {
+    var form = document.getElementById('auForm');
+    form.reset();
+    if (employee_id) {
+        var u = AU_USERS.filter(function (x) { return String(x.employee_id) === String(employee_id); })[0];
+        if (!u) return;
+        AU_EDIT = u.employee_id;
+        document.getElementById('auModalTitle').textContent = '编辑用户';
+        document.getElementById('auEmp').value = u.employee_id;
+        document.getElementById('auEmp').disabled = true;
+        form.name.value = u.name || '';
+        form.can_edit_department.checked = !!u.can_edit_department;
+        form.can_edit_action_items.checked = !!u.can_edit_action_items;
+        form.can_edit_info_list.checked = !!u.can_edit_info_list;
+        form.can_edit_personnel_file.value = u.can_edit_personnel_file || 'NO';
+    } else {
+        AU_EDIT = null;
+        document.getElementById('auModalTitle').textContent = '新增用户';
+        document.getElementById('auEmp').disabled = false;
+        form.can_edit_personnel_file.value = 'NO';
+    }
+    document.getElementById('auModal').classList.add('show');
+}
+
+function closeUserModal() { document.getElementById('auModal').classList.remove('show'); }
+
+document.getElementById('auForm').onsubmit = function (e) {
+    e.preventDefault();
+    var form = e.target;
+    fetch('/api/admin/users', {
+        method: 'POST',
+        headers: authHeaders({'Content-Type': 'application/json'}),
+        body: JSON.stringify({
+            employee_id: document.getElementById('auEmp').value,
+            name: form.name.value,
+            can_edit_department: form.can_edit_department.checked,
+            can_edit_action_items: form.can_edit_action_items.checked,
+            can_edit_info_list: form.can_edit_info_list.checked,
+            can_edit_personnel_file: form.can_edit_personnel_file.value
+        })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.success) { closeUserModal(); loadUsers(); }
+        else { alert(data.message || '保存失败'); }
+    })
+    .catch(function () { alert('请求失败'); });
+};
+
+function deleteUser(employee_id, name) {
+    if (!confirm('确定删除用户「' + name + '（' + employee_id + '）」吗？此操作不可恢复。')) return;
+    fetch('/api/admin/users/' + encodeURIComponent(employee_id), {method: 'DELETE', headers: authHeaders()})
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) { loadUsers(); }
+            else { alert(data.message || '删除失败'); }
+        })
+        .catch(function () { alert('请求失败'); });
+}
+
+function lockAdmin() {
+    // 通知服务器销毁 token，然后回到首页（token 也随之从页面内存中消失）
+    fetch('/api/admin/lock', {method: 'POST', headers: authHeaders()})
+        .then(function () { location.href = '/'; })
+        .catch(function () { location.href = '/'; });
+}
+
+// 进入页面时先显示密码闸门（不自动加载数据）
+showGate();
+</script>
+{% endblock %}
