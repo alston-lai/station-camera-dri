@@ -7,12 +7,18 @@ import io
 import json
 import os
 import secrets
+import sys
 import time
 import threading
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for
 from markupsafe import escape, Markup
+
+# 把 scripts 目录加入 sys.path：
+# 无论用 `app:app`（cwd=scripts，gunicorn/docker-compose 命令）还是
+# `scripts.app:app`（cwd=/app，镜像默认 CMD）启动，都能正确 import data_manager。
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from data_manager import (
     init_all_data,
