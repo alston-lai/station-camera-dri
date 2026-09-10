@@ -313,16 +313,29 @@
 .recent-dot-gray { background: #86868b; }
 .recent-dot-blue { background: #0071E3; }
 .recent-dot-orange { background: #FF9500; }
+/* 标题 + 下方小字：纵向排列、整体左对齐，两行共享同一条左基线 */
+.recent-main {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: 0.15rem;
+    flex: 1;
+    min-width: 0;
+}
 .recent-title {
     font-weight: 500;
     color: var(--apple-dark, #1d1d1f);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
 }
 .recent-meta {
     font-size: 0.8125rem;
     color: var(--apple-gray, #86868b);
+    text-align: left;
+    max-width: 100%;
 }
 .recent-right {
     display: flex;
@@ -403,7 +416,7 @@ Promise.all([
             return '<a href="/action-items" class="recent-item">' +
                 '<div class="recent-left">' +
                     '<div class="recent-dot ' + dotClass + '"></div>' +
-                    '<div>' +
+                    '<div class="recent-main">' +
                         '<div class="recent-title">' + item.title + '</div>' +
                         '<div class="recent-meta">DRI: ' + (item.dri || '未指定') + ' · ' + (item.eta || '未设置截止日期') + '</div>' +
                     '</div>' +
@@ -427,7 +440,7 @@ Promise.all([
             return '<a href="/info-list" class="recent-item">' +
                 '<div class="recent-left">' +
                     '<div class="recent-dot recent-dot-purple"></div>' +
-                    '<div>' +
+                    '<div class="recent-main">' +
                         '<div class="recent-title">' + item.name + '</div>' +
                         '<div class="recent-meta">' + rowCount + ' 条记录</div>' +
                     '</div>' +
@@ -450,7 +463,7 @@ Promise.all([
             return '<a href="/collector/' + item.id + '" class="recent-item">' +
                 '<div class="recent-left">' +
                     '<div class="recent-dot recent-dot-orange"></div>' +
-                    '<div>' +
+                    '<div class="recent-main">' +
                         '<div class="recent-title">' + item.name + '</div>' +
                         '<div class="recent-meta">创建于 ' + dateStr + '</div>' +
                     '</div>' +

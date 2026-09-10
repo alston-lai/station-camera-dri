@@ -29,6 +29,8 @@ from data_manager import (
     export_staff_to_excel, import_staff_from_excel
 )
 
+from version import __version__
+
 # 获取项目根目录和模板路径
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
@@ -91,6 +93,10 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
 # 限制上传体积，防止超大文件拖垮服务（Excel/CSV 导入）
 app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 
+#version control
+@app.context_processor
+def inject_version():
+    return dict(app_version=__version__)
 
 def nl2br(value):
     """把文本中的换行符转成 <br>，同时转义 HTML，供表格单元格保留换行显示。"""
