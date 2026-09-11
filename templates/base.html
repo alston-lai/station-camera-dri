@@ -36,6 +36,7 @@
                 <a href="/info-list" class="nav-link">信息列表</a>
                 <a href="/collector" class="nav-link">数据收集</a>
                 {% if session.get('user', {}).get('can_edit_department') %}
+                <a href="/kpi" class="nav-link">KPI 管理</a>
                 <a href="/history" class="nav-link">历史记录</a>
                 {% endif %}
             </div>

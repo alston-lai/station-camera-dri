@@ -47,6 +47,35 @@ def full_to_short(full_name: str) -> str:
     return full_name
 
 
+# 数据收集表格里有时用 HWTE5/HWTE6/HWTE7/HWTE8 表示五/六/七/八部
+HWTE_DEPT_MAP = {'5': '五部', '6': '六部', '7': '七部', '8': '八部'}
+
+
+def normalize_dept(value: Any) -> str:
+    """把各种部门写法统一成短名（五部/六部/七部/八部）。
+
+    支持：五部、硬件测试开发五部、HWTE5、HWTE-5、HWTE 5、hwte5、HWTE_5 等；
+    无法识别时返回去掉首尾空白后的原文。
+    """
+    s = str(value or '').strip()
+    if not s:
+        return ''
+    if s in DEPT_SHORT_NAMES:
+        return s
+    short = full_to_short(s)
+    if short in DEPT_SHORT_NAMES:
+        return short
+    compact = s.upper().replace(' ', '').replace('-', '').replace('_', '')
+    if compact.startswith('HWTE'):
+        digit = compact[4:5]
+        if digit in HWTE_DEPT_MAP:
+            return HWTE_DEPT_MAP[digit]
+    for d in DEPT_SHORT_NAMES:
+        if d in s:
+            return d
+    return s
+
+
 def get_data_path(filename: str) -> str:
     """返回数据目录下文件的路径（兼容旧调用）"""
     return os.path.join(DATA_DIR, filename)

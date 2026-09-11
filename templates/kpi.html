@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}KPI 管理 - Station & Camera DRI Management{% endblock %}
+
+{% block content %}
+<style>
+.kpi-header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:18px; }
+.kpi-back { color:#0071E3; font-size:14px; text-decoration:none; display:inline-block; margin-bottom:6px; }
+.kpi-back:hover { text-decoration:underline; }
+.kpi-title { font-size:26px; font-weight:700; color:#1d1d1f; margin:0; }
+.kpi-sub { font-size:13px; color:#86868b; margin-top:6px; }
+
+.kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+@media (max-width: 900px) { .kpi-grid { grid-template-columns:1fr; } }
+.kpi-card { background:#fff; border-radius:18px; box-shadow:0 2px 14px rgba(0,0,0,.06); padding:1.25rem 1.5rem 1.4rem; margin-bottom:1.25rem; }
+.kpi-card-wide { grid-column: 1 / -1; }
+.kpi-card h2 { font-size:16px; font-weight:700; color:#1d1d1f; margin:0 0 4px; }
+.kpi-card-note { font-size:12px; color:#86868b; font-weight:400; margin-left:6px; }
+.kpi-card-src { font-size:12px; color:#a1a1a6; margin:0 0 1rem; }
+.kpi-card-src span { color:#6e6e73; }
+
+/* 横向柱状图 */
+.kpi-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.kpi-label { width:96px; flex:0 0 96px; font-size:13px; color:#1d1d1f; font-weight:600; }
+.kpi-label small { display:block; font-size:11px; color:#a1a1a6; font-weight:400; }
+.kpi-track { flex:1; background:#f2f2f5; border-radius:6px; height:20px; overflow:hidden; }
+.kpi-fill { height:100%; border-radius:6px; transition:width .4s ease; min-width:2px; }
+.kpi-value { width:72px; flex:0 0 72px; font-size:13.5px; color:#1d1d1f; font-weight:700; text-align:right; }
+/* 可点击的柱条（跳转该部部门分析页对应表格） */
+a.kpi-row { text-decoration:none; color:inherit; border-radius:8px; padding:4px 8px 4px 4px; margin-left:-4px; margin-bottom:6px; cursor:pointer; transition:background .15s ease; }
+a.kpi-row:hover { background:#eef6ff; }
+a.kpi-row:hover .kpi-value { color:#0071E3; }
+a.kpi-row .kpi-label::after { content:' ↗'; color:#c7c7cc; font-size:11px; }
+a.kpi-row:hover .kpi-label::after { color:#0071E3; }
+.kpi-scale { display:flex; justify-content:space-between; font-size:11px; color:#a1a1a6; margin:-2px 0 0 106px; }
+.kpi-total { margin-top:12px; padding-top:10px; border-top:1px solid #f0f0f2; font-size:12.5px; color:#86868b; }
+.kpi-total b { color:#1d1d1f; }
+.kpi-empty { color:#86868b; text-align:center; padding:1.5rem; font-size:13px; }
+</style>
+
+<div class="kpi-header">
+    <div>
+        <a href="/" class="kpi-back">← 返回首页</a>
+        <h1 class="kpi-title">KPI 管理</h1>
+        <p class="kpi-sub">横向对比四部（五部 / 六部 / 七部 / 八部）的 NRE 比例与专项信息数量</p>
+    </div>
+</div>
+
+<!-- 1. NRE 比例（Station DRI vs Camera） -->
+<div class="kpi-card kpi-card-wide">
+    <h2>{{ nre.title }}<span class="kpi-card-note">{{ nre.note }}</span></h2>
+    <p class="kpi-card-src">数据来源：信息列表 · <span>{{ nre.source or 'NRE 比例（未找到该信息表）' }}</span></p>
+    {% if nre.bars %}
+    {% for it in nre.bars %}
+    <div class="kpi-row">
+        <div class="kpi-label">{{ it.label }}<small>{{ it.sub }}</small></div>
+        <div class="kpi-track">
+            <div class="kpi-fill" style="width: {{ it.pct }}%; background: linear-gradient(90deg, {{ it.color }}, {{ it.color }}cc);"></div>
+        </div>
+        <div class="kpi-value">{% if it.value is none %}-{% else %}{{ it.value }}%{% endif %}</div>
+    </div>
+    {% endfor %}
+    {% if not nre.max %}
+    <div class="kpi-total">暂无可统计的 NRE 比例数据（请检查信息列表中的 NRE 比例表格）</div>
+    {% else %}
+    <div class="kpi-scale"><span>0%</span><span>满刻度 100%（未拉满即未达 100%）</span><span>100%</span></div>
+    {% endif %}
+    {% else %}
+    <div class="kpi-empty">暂无 NRE 比例数据</div>
+    {% endif %}
+</div>
+
+<!-- 2~6. 各部信息数量对比 -->
+<div class="kpi-grid">
+    {% for s in sections %}
+    <div class="kpi-card">
+        <h2>{{ s.title }}<span class="kpi-card-note">{{ s.note }}</span></h2>
+        <p class="kpi-card-src">数据来源：<span>{{ s.source or '未找到数据表' }}</span></p>
+        {% if s.bars %}
+        {% for it in s.bars %}
+        <a class="kpi-row" href="{{ url_for('department_analysis', dept=it.label, _anchor=it.anchor) }}"
+           title="查看{{ it.label }}的对应明细">
+            <div class="kpi-label">{{ it.label }}</div>
+            <div class="kpi-track">
+                <div class="kpi-fill" style="width: {{ it.pct }}%; background: linear-gradient(90deg, {{ it.color }}, {{ it.color }}cc);"></div>
+            </div>
+            <div class="kpi-value">{{ it.value }} 条</div>
+        </a>
+        {% endfor %}
+        {% if s.max %}
+        <div class="kpi-total">合计 <b>{{ s.total }}</b> 条 · 最高 <b>{{ s.max }}</b> 条 · 点击柱条可查看该部明细</div>
+        {% else %}
+        <div class="kpi-total">暂无可统计的数据（四部均为 0 条）</div>
+        {% endif %}
+        {% else %}
+        <div class="kpi-empty">暂无数据</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

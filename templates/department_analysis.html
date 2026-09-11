@@ -41,7 +41,9 @@
 .legend-dot { width:12px; height:12px; border-radius:3px; }
 .da-center-num { font-size:15px; font-weight:700; }
 
-.da-table-card { background:#fff; border-radius:18px; box-shadow:0 2px 14px rgba(0,0,0,.06); padding:1.25rem 1.5rem 1.4rem; margin-bottom:1.25rem; }
+.da-table-card { background:#fff; border-radius:18px; box-shadow:0 2px 14px rgba(0,0,0,.06); padding:1.25rem 1.5rem 1.4rem; margin-bottom:1.25rem; scroll-margin-top: 72px; }
+/* 从 KPI 页面跳转过来时高亮对应板块 */
+.da-table-card:target { box-shadow: 0 0 0 3px rgba(0, 113, 227, .35), 0 2px 14px rgba(0,0,0,.06); }
 .da-table-card h2 { font-size:16px; font-weight:700; color:#1d1d1f; margin:0 0 1rem; }
 .da-table { width:100%; border-collapse:collapse; }
 .da-table th, .da-table td { text-align:left; padding:9px 12px; font-size:13.5px; border-bottom:1px solid #f0f0f2; vertical-align:top; }
@@ -115,7 +117,7 @@
 </div>
 
 <!-- 3. 惩罚信息 -->
-<div class="da-table-card">
+<div class="da-table-card" id="punish">
     <h2>部门员工惩罚信息<span class="da-card-note">数据来源：员工档案 · 奖惩信息</span></h2>
     {% if punish_list %}
     <table class="da-table">
@@ -136,7 +138,7 @@
 </div>
 
 <!-- 4. 奖励信息 -->
-<div class="da-table-card">
+<div class="da-table-card" id="reward">
     <h2>部门员工奖励信息<span class="da-card-note">数据来源：员工档案 · 奖惩信息</span></h2>
     {% if reward_list %}
     <table class="da-table">
@@ -157,7 +159,7 @@
 </div>
 
 <!-- 5. 专利信息 -->
-<div class="da-table-card">
+<div class="da-table-card" id="patent">
     <h2>部门专利信息<span class="da-card-note">{{ patent_name or '专利 Tracker' }}</span></h2>
     {% if patent_rows %}
     <table class="da-table">
@@ -170,7 +172,7 @@
 </div>
 
 <!-- 6. 研发立项信息 -->
-<div class="da-table-card">
+<div class="da-table-card" id="rd">
     <h2>部门研发立项信息<span class="da-card-note">{{ rd_name or '研发立项 Tracker' }}</span></h2>
     {% if rd_rows %}
     <table class="da-table">
@@ -183,7 +185,7 @@
 </div>
 
 <!-- 7. 激励专案信息 -->
-<div class="da-table-card">
+<div class="da-table-card" id="incentive">
     <h2>部门激励专案信息<span class="da-card-note">{{ inc_name or '激励专案 Tracker' }}</span></h2>
     {% if inc_rows %}
     <table class="da-table">
@@ -192,6 +194,28 @@
     </table>
     {% else %}
     <div class="da-empty">本部门暂无激励专案信息{% if not inc_name %}（未找到“激励专案 Tracker”收集表格）{% endif %}</div>
+    {% endif %}
+</div>
+
+<!-- 8. Skills 开发信息 -->
+<div class="da-table-card" id="skills">
+    <h2>Skills 开发信息<span class="da-card-note">{{ skills_name or 'Skills Tracker' }}</span></h2>
+    {% if skills_list %}
+    <table class="da-table">
+        <thead><tr><th>部门</th><th>Skill 名称</th><th>描述</th><th>DRI</th></tr></thead>
+        <tbody>
+            {% for it in skills_list %}
+            <tr>
+                <td>{{ it['部门'] }}</td>
+                <td>{{ it['Skill 名称'] or '-' }}</td>
+                <td class="da-multiline">{{ it['描述'] or '-' }}</td>
+                <td>{{ it['DRI'] or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="da-empty">本部门暂无 Skills 开发信息{% if not skills_name %}（未找到“Skills Tracker”收集表格）{% endif %}</div>
     {% endif %}
 </div>
 {% endblock %}

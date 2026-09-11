@@ -813,8 +813,12 @@ function selectDeptAndLoad(dept) {
     loadDetailData();
 }
 
-// 点击部门大卡片：进入该部门的「部门分析」页面
+// 点击部门大卡片：进入该部门的「部门分析」页面（需部门信息编辑权限）
 function goDeptAnalysis(dept) {
+    if (!canEditDept) {
+        alert('您没有权限查看部门分析，请联系主管开通「部门信息可编辑」权限');
+        return;
+    }
     location.href = '/department/analysis/' + encodeURIComponent(dept);
 }
 
@@ -844,7 +848,7 @@ function goDeptAnalysis(dept) {
             return `
             <div class="dept-card dept-card-${dept}" onclick="goDeptAnalysis('${dept}')" role="button" tabindex="0"
                  onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goDeptAnalysis('${dept}');}"
-                 title="查看${dept}部门分析">
+                 title="${canEditDept ? '查看' + dept + '部门分析' : '暂无部门分析权限（需「部门信息可编辑」）'}">
                 <div class="dept-top">
                     <div class="dept-icon">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">

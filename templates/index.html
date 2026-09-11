@@ -71,6 +71,21 @@
         <span class="nav-module-arrow">进入 →</span>
     </a>
 
+    {% if session.get('user', {}).get('can_edit_department') %}
+    <a href="/kpi" class="nav-module-card nav-module-red">
+        <div class="nav-module-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+        </div>
+        <div class="nav-module-info">
+            <div class="nav-module-title">KPI 管理</div>
+            <div class="nav-module-desc">四部 KPI 横向对比、图形呈现</div>
+        </div>
+        <span class="nav-module-arrow">进入 →</span>
+    </a>
+    {% endif %}
+
     {% if session.get('user', {}).get('employee_id') == '12214253' %}
     <a href="/admin/users" class="nav-module-card nav-module-gray">
         <div class="nav-module-icon">
@@ -236,6 +251,7 @@
 .nav-module-purple .nav-module-icon { background: linear-gradient(135deg, #AF52DE 0%, #BF5AF2 100%); }
 .nav-module-orange .nav-module-icon { background: linear-gradient(135deg, #FF9500 0%, #FF9F0A 100%); }
 .nav-module-gray .nav-module-icon { background: linear-gradient(135deg, #6E6E73 0%, #8E8E93 100%); }
+.nav-module-red .nav-module-icon { background: linear-gradient(135deg, #FF3B30 0%, #FF6B6B 100%); }
 .nav-module-info {
     flex: 1;
 }
@@ -260,6 +276,7 @@
 .nav-module-purple .nav-module-arrow { color: #AF52DE; }
 .nav-module-orange .nav-module-arrow { color: #FF9500; }
 .nav-module-gray .nav-module-arrow { color: #6E6E73; }
+.nav-module-red .nav-module-arrow { color: #FF3B30; }
 
 /* 最近内容区域 */
 .recent-section {

@@ -6,6 +6,7 @@ import csv
 import io
 import json
 import os
+import re
 import secrets
 import sys
 import time
@@ -22,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from data_manager import (
     init_all_data,
-    DEPT_SHORT_NAMES,
+    DEPT_SHORT_NAMES, normalize_dept,
     get_all_staff, get_department_summary, get_department_detail, get_department_all, get_department_staff,
     add_staff_to_department, remove_staff_from_department, update_department_members, add_left_record,
     add_joined_record, find_staff_id_by_name, update_staff_member,
@@ -497,8 +498,22 @@ def _parse_level(value):
     return int(digits) if digits else None
 
 
+def _row_value(row, key, default=''):
+    """按列名取值（忽略大小写与首尾空白，兼容 'Skill 名称' / 'skill 名称' 之类的写法）"""
+    if not isinstance(row, dict):
+        return default
+    if key in row and row[key] not in (None, ''):
+        return row[key]
+    target = str(key).strip().lower()
+    for k, v in row.items():
+        if isinstance(k, str) and k.strip().lower() == target and v not in (None, ''):
+            return v
+    return default
+
+
 def _dept_sheet_rows(keyword, dept):
-    """从名称含 keyword 的收集表格中取「部门 == dept」的行；返回 (表名, 表头, 行列表)"""
+    """从名称含 keyword 的收集表格中取「部门 == dept」的行；返回 (表名, 表头, 行列表)
+    部门写法会先归一化（HWTE5 → 五部，硬件测试开发五部 → 五部）。"""
     sheet = find_collector_sheet_by_name(keyword)
     if not sheet:
         return None, [], []
@@ -506,14 +521,14 @@ def _dept_sheet_rows(keyword, dept):
     # 找“部门”列（兼容 department）
     dept_col = None
     for h in headers:
-        if h == '部门' or str(h).lower() == 'department':
+        if h == '部门' or str(h).lower() in ('部门', 'department'):
             dept_col = h
             break
     rows = []
     for r in sheet.get('rows', []):
         if dept_col:
-            val = r.get(dept_col, r.get(str(dept_col).lower(), ''))
-            if str(val or '').strip() != dept:
+            val = _row_value(r, dept_col, r.get('部门', r.get('department', '')))
+            if normalize_dept(val) != dept:
                 continue
         rows.append(r)
     return sheet.get('name', ''), headers, rows
@@ -522,8 +537,12 @@ def _dept_sheet_rows(keyword, dept):
 @app.route('/department/analysis/<dept>')
 @login_required
 def department_analysis(dept):
-    """部门分析页面（点击部门大卡片进入）"""
+    """部门分析页面（点击部门大卡片进入）；需部门信息编辑权限（can_edit_department）"""
     if dept not in DEPT_SHORT_NAMES:
+        return redirect(url_for('department'))
+
+    user = get_current_user()
+    if not user.get('can_edit_department', False):
         return redirect(url_for('department'))
 
     current = get_department_detail(dept).get('current', [])
@@ -562,6 +581,15 @@ def department_analysis(dept):
     rd_name, rd_headers, rd_rows = _dept_sheet_rows('研发立项', dept)
     inc_name, inc_headers, inc_rows = _dept_sheet_rows('激励专案', dept)
 
+    # 8) Skills 开发信息（数据收集 · Skills Tracker；部门列 HWTE5~8 统一显示为 五~八部）
+    skills_name, _skills_headers, skills_raw = _dept_sheet_rows('Skills', dept)
+    skills_list = [{
+        '部门': dept,
+        'Skill 名称': _row_value(r, 'Skill 名称', r.get('skill 名称', '')),
+        '描述': _row_value(r, '描述', ''),
+        'DRI': _row_value(r, 'DRI', r.get('dri', '')),
+    } for r in skills_raw]
+
     return render_template(
         'department_analysis.html', dept=dept, total=total,
         level_dist=level_dist, max_count=max_count,
@@ -569,7 +597,156 @@ def department_analysis(dept):
         punish_list=punish_list, reward_list=reward_list,
         patent_name=patent_name, patent_headers=patent_headers, patent_rows=patent_rows,
         rd_name=rd_name, rd_headers=rd_headers, rd_rows=rd_rows,
-        inc_name=inc_name, inc_headers=inc_headers, inc_rows=inc_rows)
+        inc_name=inc_name, inc_headers=inc_headers, inc_rows=inc_rows,
+        skills_name=skills_name, skills_list=skills_list)
+
+
+# ===== KPI 管理：横向对比四个部门（五/六/七/八部）=====
+KPI_DEPT_COLORS = {'五部': '#0071E3', '六部': '#34C759', '七部': '#FF9500', '八部': '#AF52DE'}
+
+
+def _parse_number(value):
+    """把 '77.5%' / '0.775' / '80' 解析为数值；失败返回 None"""
+    if value is None:
+        return None
+    s = str(value).strip().replace(',', '')
+    if not s:
+        return None
+    has_pct = s.endswith('%')
+    if has_pct:
+        s = s[:-1].strip()
+    m = re.search(r'-?\d+(?:\.\d+)?', s)
+    if not m:
+        return None
+    try:
+        return float(m.group(0))
+    except ValueError:
+        return None
+
+
+def _info_table_by_keyword(keyword):
+    """按名称关键字（不区分大小写）查找信息表"""
+    kw = str(keyword).lower()
+    for t in get_all_info_list():
+        if kw in str(t.get('name', '')).lower():
+            return t
+    return None
+
+
+def _nre_section():
+    """NRE 比例：Station DRI(五部+六部) 与 Camera(七部+八部)。
+    优先使用表中现成的功能部门行；若表内是 五/六/七/八部 明细行，
+    则按「在职 ÷ NRE HC」合并计算（表格中 Station DRI 62/80=77.5%、Camera 66/88=75%）。"""
+    table = _info_table_by_keyword('NRE')
+    direct, grouped = {}, {'Station DRI': {'hc': 0.0, 'nre': 0.0}, 'Camera': {'hc': 0.0, 'nre': 0.0}}
+    if table:
+        for r in table.get('rows', []) or []:
+            dept = str(r.get('部门', r.get('department', '')) or '').strip()
+            if not dept:
+                continue
+            low = dept.lower()
+            if 'station' in low or 'camera' in low:
+                label = 'Station DRI' if 'station' in low else 'Camera'
+                ratio = _parse_number(r.get('NRE 比例', r.get('NRE比例', '')))
+                if ratio is not None:
+                    direct[label] = ratio
+                continue
+            if dept in ('五部', '六部'):
+                key = 'Station DRI'
+            elif dept in ('七部', '八部'):
+                key = 'Camera'
+            else:
+                continue
+            hc = _parse_number(r.get('在职', ''))
+            nre = _parse_number(r.get('NRE HC', r.get('NREHC', '')))
+            if hc is not None:
+                grouped[key]['hc'] += hc
+            if nre is not None:
+                grouped[key]['nre'] += nre
+
+    items = []
+    for label, sub, color in (('Station DRI', '五部 + 六部', '#0071E3'),
+                              ('Camera', '七部 + 八部', '#FF9500')):
+        ratio = direct.get(label)
+        if ratio is None and grouped[label]['nre']:
+            ratio = round(grouped[label]['hc'] * 100.0 / grouped[label]['nre'], 1)
+        items.append({'label': label, 'sub': sub, 'color': color, 'value': ratio})
+
+    mx = max([i['value'] or 0 for i in items], default=0)
+    for i in items:
+        # 横向柱状图满刻度为 100%：条形长度 = 比例本身（77.5% 的柱子不会拉满）
+        i['pct'] = round(i['value'] or 0, 1)
+    return {'title': 'NRE 比例对比', 'note': 'Station DRI（五部+六部） vs Camera（七部+八部）',
+            'source': table.get('name') if table else '', 'unit': '%',
+            'bars': items, 'max': mx}
+
+
+def _sheet_dept_counts(keyword):
+    """收集表格：按部门列统计各部的行数（信息数量）；部门写法归一化（HWTE5 → 五部）"""
+    counts = {d: 0 for d in DEPT_SHORT_NAMES}
+    sheet = find_collector_sheet_by_name(keyword)
+    if sheet:
+        for r in sheet.get('rows', []) or []:
+            dept = normalize_dept(_row_value(r, '部门', r.get('department', '')))
+            if dept in counts:
+                counts[dept] += 1
+    return counts, (sheet.get('name') or '' if sheet else '')
+
+
+def _reward_punish_counts():
+    """员工档案 · 奖惩信息：按部门统计奖励 / 惩罚条数"""
+    reward = {d: 0 for d in DEPT_SHORT_NAMES}
+    punish = {d: 0 for d in DEPT_SHORT_NAMES}
+    for dept in DEPT_SHORT_NAMES:
+        for f in get_personnel_files_by_dept(dept):
+            rw, pu = classify_reward_punishment(f.get('reward_punishment'))
+            reward[dept] += len(rw)
+            punish[dept] += len(pu)
+    return punish, reward
+
+
+def _count_section(title, note, source, counts, anchor):
+    """把各部数量整理为图表所需结构（pct 为相对本组最大值的条形宽度百分比）；
+    anchor 为部门分析页面中对应表格板块的锚点（点击柱条跳转用）。"""
+    mx = max(counts.values()) if counts else 0
+    items = []
+    for d in DEPT_SHORT_NAMES:
+        n = counts.get(d, 0)
+        items.append({'label': d, 'value': n, 'color': KPI_DEPT_COLORS[d], 'anchor': anchor,
+                      'pct': round(n * 100.0 / mx, 1) if mx else 0})
+    return {'title': title, 'note': note, 'source': source, 'unit': '条',
+            'bars': items, 'max': mx, 'total': sum(counts.values())}
+
+
+@app.route('/kpi')
+@login_required
+def kpi_manage():
+    """KPI 管理页面：横向对比四部（NRE 比例 / 激励专案 / 专利 / 研发立项 / 惩罚 / 奖励）
+    需部门信息编辑权限（can_edit_department），与历史记录一致。"""
+    user = get_current_user()
+    if not user.get('can_edit_department', False):
+        return redirect(url_for('index'))
+
+    nre = _nre_section()
+
+    inc_counts, inc_source = _sheet_dept_counts('激励专案')
+    patent_counts, patent_source = _sheet_dept_counts('专利')
+    rd_counts, rd_source = _sheet_dept_counts('研发立项')
+    skills_counts, skills_source = _sheet_dept_counts('Skills')
+    punish_counts, reward_counts = _reward_punish_counts()
+
+    sections = [
+        _count_section('激励专案数量对比', '四部激励专案数量差异', inc_source, inc_counts, 'incentive'),
+        _count_section('专利数量对比', '四部专利数量差异', patent_source, patent_counts, 'patent'),
+        _count_section('研发立项数量对比', '四部研发立项数量差异', rd_source, rd_counts, 'rd'),
+        _count_section('Skill 开发数量对比', '四部 Skill 开发数量差异', skills_source, skills_counts, 'skills'),
+        _count_section('惩罚信息数量对比', '四部员工惩罚信息条数差异',
+                       '员工档案 · 奖惩信息', punish_counts, 'punish'),
+        _count_section('奖励信息数量对比', '四部员工奖励信息条数差异',
+                       '员工档案 · 奖惩信息', reward_counts, 'reward'),
+    ]
+    return render_template('kpi.html', nre=nre, sections=sections)
+
 
 
 @app.route('/api/department/summary')
