@@ -28,6 +28,7 @@ from data_manager import (
     add_joined_record, find_staff_id_by_name, update_staff_member,
     update_department_record, delete_department_record,
     get_personnel_file, update_personnel_file,
+    get_personnel_files_by_dept, find_collector_sheet_by_name, classify_reward_punishment,
     get_all_users, get_user, upsert_user, delete_user,
     read_tabular_rows,
     get_all_action_items, add_action_item, update_action_item, delete_action_item,
@@ -488,6 +489,87 @@ def department():
     return render_template('dashboard.html', departments=DEPARTMENTS,
                            can_edit=user.get('can_edit_department', False),
                            personnel_depts=allowed)
+
+
+def _parse_level(value):
+    """从级别文本中取数字（如 '9级' -> 9）；无数字返回 None"""
+    digits = ''.join(ch for ch in str(value or '') if ch.isdigit())
+    return int(digits) if digits else None
+
+
+def _dept_sheet_rows(keyword, dept):
+    """从名称含 keyword 的收集表格中取「部门 == dept」的行；返回 (表名, 表头, 行列表)"""
+    sheet = find_collector_sheet_by_name(keyword)
+    if not sheet:
+        return None, [], []
+    headers = sheet.get('headers', [])
+    # 找“部门”列（兼容 department）
+    dept_col = None
+    for h in headers:
+        if h == '部门' or str(h).lower() == 'department':
+            dept_col = h
+            break
+    rows = []
+    for r in sheet.get('rows', []):
+        if dept_col:
+            val = r.get(dept_col, r.get(str(dept_col).lower(), ''))
+            if str(val or '').strip() != dept:
+                continue
+        rows.append(r)
+    return sheet.get('name', ''), headers, rows
+
+
+@app.route('/department/analysis/<dept>')
+@login_required
+def department_analysis(dept):
+    """部门分析页面（点击部门大卡片进入）"""
+    if dept not in DEPT_SHORT_NAMES:
+        return redirect(url_for('department'))
+
+    current = get_department_detail(dept).get('current', [])
+
+    # 1) 级别分布
+    dist = {}
+    for m in current:
+        lv = _parse_level(m.get('level'))
+        dist[lv] = dist.get(lv, 0) + 1
+    known_levels = sorted([k for k in dist if k is not None])
+    level_dist = [{'label': f'{k} 级', 'count': dist[k], 'num': k} for k in known_levels]
+    if None in dist:
+        level_dist.append({'label': '未知', 'count': dist[None], 'num': None})
+    max_count = max([d['count'] for d in level_dist], default=0) or 1
+
+    # 2) 人员占比：9 级及以上 / 9 级以下
+    total = len(current)
+    high = sum(v for k, v in dist.items() if k is not None and k >= 9)
+    low = total - high
+    high_pct = round(high * 100.0 / total, 1) if total else 0
+    low_pct = round(100 - high_pct, 1) if total else 0
+
+    # 3)/4) 惩罚 / 奖励信息（来自员工档案的奖惩信息）
+    punish_list, reward_list = [], []
+    for f in get_personnel_files_by_dept(dept):
+        rw, pu = classify_reward_punishment(f.get('reward_punishment'))
+        if pu:
+            punish_list.append({'name': f.get('name', ''), 'employee_id': f.get('employee_id', ''),
+                                'info': '\n'.join(pu)})
+        if rw:
+            reward_list.append({'name': f.get('name', ''), 'employee_id': f.get('employee_id', ''),
+                                'info': '\n'.join(rw)})
+
+    # 5)/6)/7) 来自数据收集的 Tracker
+    patent_name, patent_headers, patent_rows = _dept_sheet_rows('专利', dept)
+    rd_name, rd_headers, rd_rows = _dept_sheet_rows('研发立项', dept)
+    inc_name, inc_headers, inc_rows = _dept_sheet_rows('激励专案', dept)
+
+    return render_template(
+        'department_analysis.html', dept=dept, total=total,
+        level_dist=level_dist, max_count=max_count,
+        high=high, low=low, high_pct=high_pct, low_pct=low_pct,
+        punish_list=punish_list, reward_list=reward_list,
+        patent_name=patent_name, patent_headers=patent_headers, patent_rows=patent_rows,
+        rd_name=rd_name, rd_headers=rd_headers, rd_rows=rd_rows,
+        inc_name=inc_name, inc_headers=inc_headers, inc_rows=inc_rows)
 
 
 @app.route('/api/department/summary')

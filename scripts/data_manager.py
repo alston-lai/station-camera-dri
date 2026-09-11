@@ -1228,6 +1228,49 @@ def update_collector_sheet_headers(sheet_id: int, new_headers: List[str], operat
     return True
 
 
+def get_personnel_files_by_dept(dept: str) -> List[Dict]:
+    """按部门取员工档案（用于部门分析中的奖惩信息）"""
+    rows = _conn().execute(
+        'SELECT * FROM personnel_files WHERE department=? ORDER BY employee_id', (dept,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def find_collector_sheet_by_name(keyword: str) -> Optional[Dict]:
+    """按名称关键字查找收集表格（如 '专利'、'研发立项'、'激励专案'）"""
+    r = _conn().execute(
+        "SELECT * FROM collector_sheets WHERE name LIKE ? ORDER BY id LIMIT 1",
+        ('%' + keyword + '%',)).fetchone()
+    if not r:
+        return None
+    return {
+        'id': r['id'],
+        'name': r['name'],
+        'headers': json.loads(r['headers_json'] or '[]'),
+        'rows': json.loads(r['rows_json'] or '[]'),
+    }
+
+
+# 奖惩信息的简易分类关键字（用于把“奖惩信息”拆成奖励行 / 惩罚行）
+REWARD_KEYWORDS = ('奖励', '表彰', '表扬', '嘉奖', '奖金', '记功', '荣誉', '奖状', '激励')
+PUNISH_KEYWORDS = ('惩处', '警告', '大过', '小过', '记过', '申诫', '处罚', '罚款', '异常', '处分')
+
+
+def classify_reward_punishment(text: str):
+    """把奖惩信息按行拆分为 (奖励行列表, 惩罚行列表)。
+    含奖励关键字且不含惩罚关键字的行 → 奖励；其余（含惩罚关键字或无关键字）→ 惩罚。"""
+    rewards, punishments = [], []
+    for line in str(text or '').split('\n'):
+        s = line.strip()
+        if not s:
+            continue
+        is_reward = any(k in s for k in REWARD_KEYWORDS) and not any(k in s for k in PUNISH_KEYWORDS)
+        if is_reward:
+            rewards.append(s)
+        else:
+            punishments.append(s)
+    return rewards, punishments
+
+
 # ===== 初始化 =====
 def _ensure_schema_columns():
     """对已存在的数据库执行增量列迁移（幂等）。"""

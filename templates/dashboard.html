@@ -813,6 +813,11 @@ function selectDeptAndLoad(dept) {
     loadDetailData();
 }
 
+// 点击部门大卡片：进入该部门的「部门分析」页面
+function goDeptAnalysis(dept) {
+    location.href = '/department/analysis/' + encodeURIComponent(dept);
+}
+
 // 初始加载汇总数据
 (function() {
     fetch('/api/department/summary')
@@ -837,9 +842,9 @@ function selectDeptAndLoad(dept) {
         cards.innerHTML = orderedDepts.map(dept => {
             const info = data[dept];
             return `
-            <div class="dept-card dept-card-${dept}" onclick="selectDeptAndLoad('${dept}')" role="button" tabindex="0"
-                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDeptAndLoad('${dept}');}"
-                 title="查看${dept}人员详情">
+            <div class="dept-card dept-card-${dept}" onclick="goDeptAnalysis('${dept}')" role="button" tabindex="0"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goDeptAnalysis('${dept}');}"
+                 title="查看${dept}部门分析">
                 <div class="dept-top">
                     <div class="dept-icon">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
