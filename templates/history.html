@@ -62,6 +62,7 @@
                 <th>#</th>
                 <th>操作</th>
                 <th>操作人</th>
+                <th>工号</th>
                 <th>时间</th>
             </tr>
         </thead>
@@ -80,7 +81,7 @@ function loadHistory() {
         .then(data => {
             const tbody = document.getElementById('historyTable');
             if (data.length === 0) {
-                tbody.innerHTML = '<tr class="empty-row"><td colspan="4">暂无历史记录</td></tr>';
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="5">暂无历史记录</td></tr>';
                 return;
             }
             tbody.innerHTML = data.map(r => `
@@ -88,6 +89,7 @@ function loadHistory() {
                     <td>${r.id}</td>
                     <td>${r.action}</td>
                     <td>${r.operator}</td>
+                    <td style="color: #86868b">${r.employee_id || '-'}</td>
                     <td style="color: #86868b">${r.timestamp}</td>
                 </tr>
             `).join('');

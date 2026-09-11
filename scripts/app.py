@@ -998,7 +998,7 @@ def api_action_items_add():
         'status': '进行中',
         'extra': data.get('extra', {}),
         'operator': user.get('name', user.get('employee_id', 'Unknown'))
-    }, ip_address)
+    }, ip_address, user.get('employee_id', ''))
     return jsonify({'success': True})
 
 
@@ -1015,7 +1015,7 @@ def api_action_items_update(item_id):
     data = request.json
     data['operator'] = user.get('name', user.get('employee_id', 'Unknown'))
     ip_address = get_client_ip()
-    update_action_item(item_id, data, ip_address)
+    update_action_item(item_id, data, ip_address, user.get('employee_id', ''))
     return jsonify({'success': True})
 
 
@@ -1199,7 +1199,7 @@ def api_collector_create():
         'headers': data.get('headers', []),
         'rows': [],
         'operator': user.get('name', user.get('employee_id', 'Unknown'))
-    }, ip_address)
+    }, ip_address, user.get('employee_id', ''))
     return jsonify({'success': True})
 
 
@@ -1213,7 +1213,7 @@ def api_collector_add_row(sheet_id):
     user = session['user']
     data['operator'] = user.get('name', user.get('employee_id', 'Unknown'))
     ip_address = get_client_ip()
-    add_collector_row(sheet_id, data, ip_address)
+    add_collector_row(sheet_id, data, ip_address, user.get('employee_id', ''))
     return jsonify({'success': True})
 
 
@@ -1227,7 +1227,7 @@ def api_collector_update_row(sheet_id, row_index):
     user = session['user']
     data['operator'] = user.get('name', user.get('employee_id', 'Unknown'))
     ip_address = get_client_ip()
-    update_collector_row(sheet_id, row_index, data, ip_address)
+    update_collector_row(sheet_id, row_index, data, ip_address, user.get('employee_id', ''))
     return jsonify({'success': True})
 
 

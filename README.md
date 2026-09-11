@@ -176,6 +176,19 @@ docker run -d --name dri --restart unless-stopped \
   ```
   流程：解密 → 完整性校验 → 把当前库另存为 `app.db.before_restore_*` → 覆盖 `app.db` → 清理 `-wal/-shm` → 权限 600。
   **执行前请先停服务**（本地 Ctrl+C / `docker compose stop dri`）。
+- **历史记录工号**：历史记录页展示「操作人（登录时输入的姓名）+ 工号」。若早期数据缺工号，可回填：
+  ```bash
+  python3 scripts/backfill_history_operator.py            # 预览
+  python3 scripts/backfill_history_operator.py --apply    # 写入
+  ```
+- **误删表格列的恢复**（自动快照）：
+  「修改表头」（删除列会丢弃该列数据）或「删除信息表/收集表格」前，程序会先把**改动前的表头+全部行数据**
+  存入数据库 `revisions` 表（最多保留最近 100 条）。恢复方式：
+  ```bash
+  python3 scripts/restore_revision.py --list          # 查看可用快照
+  python3 scripts/restore_revision.py --restore <id>  # 恢复（会先确认；恢复前再存一份当前状态，可回滚）
+  ```
+  （Docker：`docker compose exec dri python scripts/restore_revision.py --list`）
 - **全新部署**（数据库无用户时）：可设置环境变量 `ADMIN_EMPLOYEE_ID`（及可选 `ADMIN_NAME`）
   自动创建一个初始管理员，避免被锁在系统外。
 

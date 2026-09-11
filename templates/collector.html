@@ -334,8 +334,7 @@ document.getElementById('createForm').onsubmit = function(e) {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             name: form.name.value,
-            headers: parseTableHeaders(form.headers.value),
-            operator: 'Admin'
+            headers: parseTableHeaders(form.headers.value)
         })
     }).then(function(r) { return handleApiJson(r, function () { closeCreateModal(); location.reload(); }, '创建收集表格失败'); });
 };
@@ -346,7 +345,7 @@ function exportSheet(id) {
 
 function deleteSheet(id) {
     if (!confirm('确定删除此收集表格吗？')) return;
-    fetch('/api/collector/' + id + '?operator=Admin', {method: 'DELETE'})
+    fetch('/api/collector/' + id, {method: 'DELETE'})
         .then(function(r) { return handleApiJson(r, function () { location.reload(); }, '删除收集表格失败'); });
 }
 </script>

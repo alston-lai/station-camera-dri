@@ -288,6 +288,14 @@ document.getElementById('headersForm').onsubmit = function (e) {
     });
     if (!headers.length) { alert('表头不能为空'); return; }
     if (new Set(headers).size !== headers.length) { alert('列名不能重复'); return; }
+    // 删除列 或 列数变化 会永久丢失/错位数据 → 二次确认
+    var removed = SHEET_HEADERS.filter(function (h) { return headers.indexOf(h) === -1; });
+    if (removed.length) {
+        if (!confirm('⚠️ 即将删除以下列，其数据会被永久清除且无法恢复：\n\n' + removed.join('、') +
+                     '\n\n确定继续吗？（建议先导出备份）')) return;
+    } else if (headers.length !== SHEET_HEADERS.length) {
+        if (!confirm('⚠️ 表头列数发生变化，已有数据可能错位，确定继续吗？')) return;
+    }
     fetch('/api/collector/{{ sheet.id }}/headers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -167,6 +167,14 @@ CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT
 );
+
+CREATE TABLE IF NOT EXISTS revisions (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind         TEXT,
+    ref_id       INTEGER,
+    payload_json TEXT,
+    created_at   TEXT
+);
 """
 
 
@@ -199,6 +207,21 @@ def _meta_set(key: str, value: str = '1'):
     c = _conn()
     c.execute('INSERT OR REPLACE INTO meta(key,value) VALUES(?,?)', (key, value))
     c.commit()
+
+
+def _snapshot_revision(kind: str, ref_id, payload) -> None:
+    """在破坏性操作（改表头/删表）前保存一份快照，便于事后找回数据。
+    仅保留最近 100 条，失败不影响主流程。"""
+    try:
+        c = _conn()
+        c.execute('INSERT INTO revisions(kind,ref_id,payload_json,created_at) VALUES(?,?,?,?)',
+                  (kind, int(ref_id) if str(ref_id).lstrip('-').isdigit() else None,
+                   json.dumps(payload, ensure_ascii=False), _now_minute()))
+        c.execute('DELETE FROM revisions WHERE id NOT IN '
+                  '(SELECT id FROM revisions ORDER BY id DESC LIMIT 100)')
+        c.commit()
+    except Exception:
+        pass
 
 
 # ===== 用户表（从旧 users.json 一次性迁移）=====
@@ -913,7 +936,7 @@ def get_all_action_items() -> List[Dict]:
     return [_action_row_to_dict(r) for r in rows]
 
 
-def add_action_item(item: Dict, ip_address: str = '') -> None:
+def add_action_item(item: Dict, ip_address: str = '', op_employee_id: str = '') -> None:
     c = _conn()
     extra = item.get('extra', {}) or {}
     cur = c.execute(
@@ -926,11 +949,14 @@ def add_action_item(item: Dict, ip_address: str = '') -> None:
     item['created_at'] = _now_minute()
     c.commit()
     add_history(f"添加 Action Item: {item.get('title', '')}", item.get('operator', 'System'),
-                item.get('employee_id', ''), ip_address)
+                op_employee_id or item.get('employee_id', ''), ip_address)
 
 
-def update_action_item(item_id: int, updates: Dict, ip_address: str = '') -> None:
+def update_action_item(item_id: int, updates: Dict, ip_address: str = '',
+                       op_employee_id: str = '') -> None:
     c = _conn()
+    cur = c.execute('SELECT title FROM action_items WHERE id=?', (item_id,)).fetchone()
+    title = (cur['title'] if cur else '') or ''
     fields = ['title', 'dri', 'eta', 'status', 'progress', 'operator']
     sets = []
     vals = []
@@ -949,16 +975,21 @@ def update_action_item(item_id: int, updates: Dict, ip_address: str = '') -> Non
     set_clause = ', '.join(sets)
     c.execute('UPDATE action_items SET ' + set_clause + ' WHERE id=?', vals)
     c.commit()
-    add_history(f"更新 Action Item #{item_id}", updates.get('operator', 'System'),
-                updates.get('employee_id', ''), ip_address)
+    name = updates.get('title') or title
+    add_history(f"更新 Action Item「{name}」" if name else "更新 Action Item",
+                updates.get('operator', 'System'),
+                op_employee_id or updates.get('employee_id', ''), ip_address)
 
 
 def delete_action_item(item_id: int, operator: str = 'System',
                        op_employee_id: str = '', ip_address: str = '') -> None:
     c = _conn()
+    cur = c.execute('SELECT title FROM action_items WHERE id=?', (item_id,)).fetchone()
+    title = (cur['title'] if cur else '') or ''
     c.execute('DELETE FROM action_items WHERE id=?', (item_id,))
     c.commit()
-    add_history(f"删除 Action Item #{item_id}", operator, op_employee_id, ip_address)
+    add_history(f"删除 Action Item「{title}」" if title else "删除 Action Item",
+                operator, op_employee_id, ip_address)
 
 
 # ===== 信息列表（多表，表结构与行内容自由，rows 以 JSON 存于单行）=====
@@ -1005,7 +1036,7 @@ def add_info_row(table_id: int, row: Dict, operator: str = 'System',
     c.execute('UPDATE info_tables SET rows_json=? WHERE id=?',
               (json.dumps(rows, ensure_ascii=False), table_id))
     c.commit()
-    add_history(f"信息表 #{table_id} 添加数据", operator, op_employee_id, ip_address)
+    add_history(f"信息表「{t['name']}」添加数据", operator, op_employee_id, ip_address)
 
 
 def update_info_row(table_id: int, row_index: int, row: Dict, operator: str = 'System',
@@ -1020,15 +1051,20 @@ def update_info_row(table_id: int, row_index: int, row: Dict, operator: str = 'S
         c.execute('UPDATE info_tables SET rows_json=? WHERE id=?',
                   (json.dumps(rows, ensure_ascii=False), table_id))
         c.commit()
-    add_history(f"信息表 #{table_id} 更新第 {row_index + 1} 行", operator, op_employee_id, ip_address)
+    add_history(f"信息表「{t['name']}」更新第 {row_index + 1} 行", operator, op_employee_id, ip_address)
 
 
 def delete_info_table(table_id: int, operator: str = 'System',
                       op_employee_id: str = '', ip_address: str = '') -> None:
     c = _conn()
+    t = c.execute('SELECT * FROM info_tables WHERE id=?', (table_id,)).fetchone()
+    if t:
+        _snapshot_revision('info_table', table_id, {
+            'name': t['name'], 'headers': json.loads(t['headers_json'] or '[]'),
+            'rows': json.loads(t['rows_json'] or '[]')})
     c.execute('DELETE FROM info_tables WHERE id=?', (table_id,))
     c.commit()
-    add_history(f"删除信息表 #{table_id}", operator, op_employee_id, ip_address)
+    add_history(f"删除信息表「{t['name']}」" if t else "删除信息表", operator, op_employee_id, ip_address)
 
 
 def delete_info_row(table_id: int, row_index: int, operator: str = 'System',
@@ -1043,7 +1079,7 @@ def delete_info_row(table_id: int, row_index: int, operator: str = 'System',
         c.execute('UPDATE info_tables SET rows_json=? WHERE id=?',
                   (json.dumps(rows, ensure_ascii=False), table_id))
         c.commit()
-    add_history(f"信息表 #{table_id} 删除第 {row_index + 1} 行", operator, op_employee_id, ip_address)
+    add_history(f"信息表「{t['name']}」删除第 {row_index + 1} 行", operator, op_employee_id, ip_address)
 
 
 def update_info_table_headers(table_id: int, new_headers: List[str], operator: str = 'System',
@@ -1062,6 +1098,7 @@ def update_info_table_headers(table_id: int, new_headers: List[str], operator: s
         return False
     old_headers = json.loads(t['headers_json'] or '[]')
     rows = json.loads(t['rows_json'] or '[]')
+    _snapshot_revision('info_headers', table_id, {'headers': old_headers, 'rows': rows})
     new_rows = []
     for row in rows:
         nr = {}
@@ -1079,7 +1116,7 @@ def update_info_table_headers(table_id: int, new_headers: List[str], operator: s
               (json.dumps(new_headers, ensure_ascii=False),
                json.dumps(new_rows, ensure_ascii=False), table_id))
     c.commit()
-    add_history(f"信息表 #{table_id} 修改表头", operator, op_employee_id, ip_address)
+    add_history(f"信息表「{t['name']}」修改表头", operator, op_employee_id, ip_address)
     return True
 
 
@@ -1138,7 +1175,7 @@ def is_collector_sheet_locked(sheet_id: int) -> bool:
     return bool(r and r['locked'])
 
 
-def create_collector_sheet(sheet: Dict, ip_address: str = '') -> None:
+def create_collector_sheet(sheet: Dict, ip_address: str = '', op_employee_id: str = '') -> None:
     c = _conn()
     cur = c.execute(
         'INSERT INTO collector_sheets(name,headers_json,rows_json,operator,created_at) VALUES(?,?,?,?,?)',
@@ -1148,12 +1185,13 @@ def create_collector_sheet(sheet: Dict, ip_address: str = '') -> None:
     sheet['created_at'] = _now_minute()
     c.commit()
     add_history(f"创建收集表格: {sheet.get('name', '')}", sheet.get('operator', 'System'),
-                sheet.get('employee_id', ''), ip_address)
+                op_employee_id or sheet.get('employee_id', ''), ip_address)
 
 
-def add_collector_row(sheet_id: int, row: Dict, ip_address: str = '') -> None:
+def add_collector_row(sheet_id: int, row: Dict, ip_address: str = '',
+                      op_employee_id: str = '') -> None:
     c = _conn()
-    t = _conn().execute('SELECT rows_json FROM collector_sheets WHERE id=?', (sheet_id,)).fetchone()
+    t = _conn().execute('SELECT name, rows_json FROM collector_sheets WHERE id=?', (sheet_id,)).fetchone()
     if not t:
         return
     rows = json.loads(t['rows_json'] or '[]')
@@ -1162,13 +1200,14 @@ def add_collector_row(sheet_id: int, row: Dict, ip_address: str = '') -> None:
     c.execute('UPDATE collector_sheets SET rows_json=? WHERE id=?',
               (json.dumps(rows, ensure_ascii=False), sheet_id))
     c.commit()
-    add_history(f"收集表格 #{sheet_id} 添加数据", row.get('operator', 'System'),
-                row.get('employee_id', ''), ip_address)
+    add_history(f"收集表格「{t['name']}」添加数据", row.get('operator', 'System'),
+                op_employee_id or row.get('employee_id', ''), ip_address)
 
 
-def update_collector_row(sheet_id: int, row_index: int, row_data: Dict, ip_address: str = '') -> None:
+def update_collector_row(sheet_id: int, row_index: int, row_data: Dict, ip_address: str = '',
+                         op_employee_id: str = '') -> None:
     c = _conn()
-    t = c.execute('SELECT rows_json FROM collector_sheets WHERE id=?', (sheet_id,)).fetchone()
+    t = c.execute('SELECT name, rows_json FROM collector_sheets WHERE id=?', (sheet_id,)).fetchone()
     if not t:
         return
     rows = json.loads(t['rows_json'] or '[]')
@@ -1181,14 +1220,14 @@ def update_collector_row(sheet_id: int, row_index: int, row_data: Dict, ip_addre
         c.execute('UPDATE collector_sheets SET rows_json=? WHERE id=?',
                   (json.dumps(rows, ensure_ascii=False), sheet_id))
         c.commit()
-    add_history(f"收集表格 #{sheet_id} 更新第 {row_index + 1} 行", row_data.get('operator', 'System'),
-                row_data.get('employee_id', ''), ip_address)
+    add_history(f"收集表格「{t['name']}」更新第 {row_index + 1} 行", row_data.get('operator', 'System'),
+                op_employee_id or row_data.get('employee_id', ''), ip_address)
 
 
 def delete_collector_row(sheet_id: int, row_index: int, operator: str = 'System',
                          op_employee_id: str = '', ip_address: str = '') -> None:
     c = _conn()
-    t = c.execute('SELECT rows_json FROM collector_sheets WHERE id=?', (sheet_id,)).fetchone()
+    t = c.execute('SELECT name, rows_json FROM collector_sheets WHERE id=?', (sheet_id,)).fetchone()
     if not t:
         return
     rows = json.loads(t['rows_json'] or '[]')
@@ -1197,7 +1236,7 @@ def delete_collector_row(sheet_id: int, row_index: int, operator: str = 'System'
         c.execute('UPDATE collector_sheets SET rows_json=? WHERE id=?',
                   (json.dumps(rows, ensure_ascii=False), sheet_id))
         c.commit()
-    add_history(f"收集表格 #{sheet_id} 删除第 {row_index + 1} 行", operator, op_employee_id, ip_address)
+    add_history(f"收集表格「{t['name']}」删除第 {row_index + 1} 行", operator, op_employee_id, ip_address)
 
 
 def delete_collector_sheet(sheet_id: int, operator: str = 'System',
@@ -1205,6 +1244,11 @@ def delete_collector_sheet(sheet_id: int, operator: str = 'System',
     c = _conn()
     t = c.execute('SELECT name FROM collector_sheets WHERE id=?', (sheet_id,)).fetchone()
     sheet_name = t['name'] if t else ''
+    full = c.execute('SELECT * FROM collector_sheets WHERE id=?', (sheet_id,)).fetchone()
+    if full:
+        _snapshot_revision('collector_sheet', sheet_id, {
+            'name': full['name'], 'headers': json.loads(full['headers_json'] or '[]'),
+            'rows': json.loads(full['rows_json'] or '[]')})
     c.execute('DELETE FROM collector_sheets WHERE id=?', (sheet_id,))
     c.commit()
     if sheet_name:
@@ -1224,6 +1268,7 @@ def update_collector_sheet_headers(sheet_id: int, new_headers: List[str], operat
         return False
     old_headers = json.loads(t['headers_json'] or '[]')
     rows = json.loads(t['rows_json'] or '[]')
+    _snapshot_revision('collector_headers', sheet_id, {'headers': old_headers, 'rows': rows})
     new_rows = []
     for row in rows:
         nr = {}
@@ -1246,7 +1291,7 @@ def update_collector_sheet_headers(sheet_id: int, new_headers: List[str], operat
               (json.dumps(new_headers, ensure_ascii=False),
                json.dumps(new_rows, ensure_ascii=False), sheet_id))
     c.commit()
-    add_history(f"收集表格 #{sheet_id} 修改表头", operator, op_employee_id, ip_address)
+    add_history(f"收集表格「{t['name']}」修改表头", operator, op_employee_id, ip_address)
     return True
 
 
