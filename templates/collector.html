@@ -35,6 +35,20 @@
                 <span>{{ sheet.rows|length }} 行</span>
             </div>
         </div>
+        <!-- 锁定图标：所有用户可见；点击操作需“部门信息”编辑权限 -->
+        <button type="button" class="sheet-lock{{ ' locked' if sheet.locked else '' }}"
+                title="{% if sheet.locked %}已锁定（不可删除）· 点击解锁{% else %}未锁定（可删除）· 点击锁定{% endif %}"
+                onclick="toggleLock({{ sheet.id }}, {{ 1 if sheet.locked else 0 }})">
+            {% if sheet.locked %}
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+            {% else %}
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+            </svg>
+            {% endif %}
+        </button>
     </div>
     <div class="sheet-footer">
         <span class="sheet-date">创建于 {{ sheet.created_at }}</span>
@@ -51,12 +65,22 @@
                 </svg>
                 导出
             </button>
+            {% if sheet.locked %}
+            <button type="button" class="sheet-btn sheet-btn-danger" disabled
+                    title="表格已锁定，无法删除" style="opacity:.4;cursor:not-allowed;">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                删除
+            </button>
+            {% else %}
             <button onclick="deleteSheet({{ sheet.id }})" class="sheet-btn sheet-btn-danger">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                 </svg>
                 删除
             </button>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -180,6 +204,25 @@
 .meta-dot {
     opacity: 0.5;
 }
+/* 锁定图标（卡片右上角） */
+.sheet-lock {
+    margin-left: auto;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    border: 1px solid #e5e5ea;
+    background: #fff;
+    color: #8e8e93;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+.sheet-lock:hover { background: #f5f5f7; color: #1d1d1f; }
+.sheet-lock.locked { color: #FF3B30; border-color: #ffd0cc; background: #fff5f5; }
+.sheet-lock svg { width: 18px; height: 18px; }
 .sheet-footer {
     padding: 1rem 1.5rem;
     background: var(--apple-bg-secondary);
@@ -254,6 +297,24 @@
 </style>
 
 <script>
+// 是否可操作“锁定”图标（与部门信息编辑权限绑定；图标本身所有人可见）
+const canLock = {{ 'true' if can_lock else 'false' }};
+
+function toggleLock(id, locked) {
+    if (!canLock) {
+        alert('您没有权限操作表格锁定，请联系主管开通权限');
+        return;
+    }
+    var next = !locked;
+    var tip = next ? '确定锁定该表格吗？锁定后将无法删除。' : '确定解锁该表格吗？解锁后可以删除。';
+    if (!confirm(tip)) return;
+    fetch('/api/collector/' + id + '/lock', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({locked: next})
+    }).then(function(r) { return handleApiJson(r, function () { location.reload(); }, '操作失败'); });
+}
+
 function showCreateModal() {
     document.getElementById('createModal').classList.remove('hidden');
     document.getElementById('createModal').classList.add('flex');
@@ -276,10 +337,7 @@ document.getElementById('createForm').onsubmit = function(e) {
             headers: parseTableHeaders(form.headers.value),
             operator: 'Admin'
         })
-    }).then(function() {
-        closeCreateModal();
-        location.reload();
-    });
+    }).then(function(r) { return handleApiJson(r, function () { closeCreateModal(); location.reload(); }, '创建收集表格失败'); });
 };
 
 function exportSheet(id) {
@@ -289,7 +347,7 @@ function exportSheet(id) {
 function deleteSheet(id) {
     if (!confirm('确定删除此收集表格吗？')) return;
     fetch('/api/collector/' + id + '?operator=Admin', {method: 'DELETE'})
-        .then(function() { location.reload(); });
+        .then(function(r) { return handleApiJson(r, function () { location.reload(); }, '删除收集表格失败'); });
 }
 </script>
 {% endblock %}

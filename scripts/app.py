@@ -37,7 +37,7 @@ from data_manager import (
     update_info_table_headers,
     get_collector_sheets, get_collector_sheet, create_collector_sheet,
     add_collector_row, update_collector_row, delete_collector_row, delete_collector_sheet,
-    update_collector_sheet_headers,
+    update_collector_sheet_headers, set_collector_sheet_locked, is_collector_sheet_locked,
     get_history, add_history,
     export_staff_to_excel, import_staff_from_excel
 )
@@ -1162,7 +1162,9 @@ def collector():
     """数据收集页面"""
     sheets = get_collector_sheets()
     user = get_current_user()
-    return render_template('collector.html', sheets=sheets, can_edit=True)
+    # can_lock：是否可操作“锁定”图标（与部门信息编辑权限绑定）
+    return render_template('collector.html', sheets=sheets, can_edit=True,
+                           can_lock=user.get('can_edit_department', False))
 
 
 @app.route('/collector/<int:sheet_id>')
@@ -1295,15 +1297,35 @@ def api_collector_batch_delete(sheet_id):
 
 @app.route('/api/collector/<int:sheet_id>', methods=['DELETE'])
 def api_collector_delete_sheet(sheet_id):
-    """删除表格"""
+    """删除表格（已锁定的表格不允许删除）"""
     if 'user' not in session:
         return jsonify({'success': False, 'message': '请先登录'}), 401
     
     user = session['user']
     ip_address = get_client_ip()
     op_employee_id = user.get('employee_id', '')
+    if is_collector_sheet_locked(sheet_id):
+        return jsonify({'success': False, 'message': '该表格已锁定，无法删除（请先解锁）'}), 403
     delete_collector_sheet(sheet_id, user.get('name', user.get('employee_id', 'Unknown')), op_employee_id, ip_address)
     return jsonify({'success': True})
+
+
+@app.route('/api/collector/<int:sheet_id>/lock', methods=['POST'])
+def api_collector_toggle_lock(sheet_id):
+    """锁定/解锁收集表格（需要部门信息编辑权限）"""
+    if 'user' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    user = session['user']
+    if not user.get('can_edit_department', False):
+        return jsonify({'success': False, 'message': '您没有权限操作表格锁定，请联系主管开通权限'}), 403
+    data = request.json or {}
+    locked = bool(data.get('locked', False))
+    ok = set_collector_sheet_locked(sheet_id, locked,
+                                    user.get('name', user.get('employee_id', 'Unknown')),
+                                    user.get('employee_id', ''), get_client_ip())
+    if not ok:
+        return jsonify({'success': False, 'message': '表格不存在'}), 404
+    return jsonify({'success': True, 'locked': locked})
 
 
 @app.route('/api/collector/<int:sheet_id>/headers', methods=['POST'])

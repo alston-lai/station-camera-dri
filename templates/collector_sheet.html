@@ -134,13 +134,17 @@
         <div class="page-sub">共 {{ sheet.rows|length }} 条记录 · {{ sheet.headers|length }} 列</div>
     </div>
     <div class="header-actions">
+        {% if can_edit %}
         <button type="button" onclick="document.getElementById('importFile').click()" class="btn btn-secondary">导入 CSV/Excel</button>
+        {% endif %}
         <a href="/api/collector/{{ sheet.id }}/export" class="btn btn-success">导出 CSV</a>
+        {% if can_edit %}
         <button type="button" onclick="showHeadersModal()" class="btn btn-secondary">修改表头</button>
         <button type="button" onclick="showAddRowModal()" class="btn btn-primary">+ 添加行</button>
         <button type="button" onclick="enterBatchDelete()" id="batchDeleteBtn" class="btn btn-danger">批量删除</button>
         <button type="button" onclick="confirmBatchDelete()" id="confirmDeleteBtn" class="btn btn-danger" style="display:none;">确认删除</button>
         <button type="button" onclick="cancelBatchDelete()" id="cancelDeleteBtn" class="btn btn-cancel" style="display:none;">取消</button>
+        {% endif %}
     </div>
 </div>
 
@@ -164,7 +168,7 @@
             <tr>
                 <th class="seq-cell">序号</th>
                 {% for header in sheet.headers %}<th>{{ header }}</th>{% endfor %}
-                <th class="op-cell">操作</th>
+                <th class="op-cell">{% if can_edit %}操作{% endif %}</th>
             </tr>
         </thead>
         <tbody>
@@ -174,7 +178,7 @@
                 {% for header in sheet.headers %}
                 <td class="data-cell">{{ row.get(header, row.get(header.lower(), '')) | nl2br }}</td>
                 {% endfor %}
-                <td class="op-cell"><button type="button" class="action-btn" onclick="editRow({{ loop.index0 }})">编辑</button></td>
+                <td class="op-cell">{% if can_edit %}<button type="button" class="action-btn" onclick="editRow({{ loop.index0 }})">编辑</button>{% endif %}</td>
             </tr>
             {% else %}
             <tr class="empty-row"><td class="empty-cell" colspan="{{ sheet.headers|length + 2 }}">暂无数据</td></tr>

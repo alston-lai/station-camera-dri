@@ -102,7 +102,29 @@
             fetch('/api/logout', {method: 'POST'})
                 .then(() => window.location.href = '/login');
         }
-        
+
+        // 统一的接口错误提示：接口返回 {success:false, message:...} 时弹出提示。
+        // 同时兼容 HTTP 401/403 等被拦截的情况（后端 message 会带上权限说明）。
+        function apiError(data, fallback) {
+            var msg = (data && data.message) ? data.message : (fallback || '操作失败');
+            alert(msg);
+            return msg;
+        }
+        // 统一的响应处理：成功执行 onOk；失败（含 401/403/500）弹出后端提示
+        function handleApiJson(resp, onOk, fallback) {
+            return resp.json()
+                .then(function (data) {
+                    if (data && data.success) { if (onOk) onOk(data); }
+                    else { apiError(data, fallback); }
+                    return data;
+                })
+                .catch(function () {
+                    alert((resp && resp.status === 403) ? '您没有权限执行该操作，请联系主管开通权限'
+                        : (resp && resp.status === 401) ? '登录已过期，请重新登录'
+                        : (fallback || '请求失败'));
+                });
+        }
+
         checkLogin();
     </script>
 </body>

@@ -150,7 +150,8 @@ CREATE TABLE IF NOT EXISTS collector_sheets (
     headers_json TEXT,
     rows_json    TEXT,
     operator     TEXT,
-    created_at   TEXT
+    created_at   TEXT,
+    locked       INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS history (
@@ -1098,6 +1099,7 @@ def get_collector_sheets() -> List[Dict]:
             'rows': json.loads(r['rows_json'] or '[]'),
             'operator': r['operator'] or '',
             'created_at': r['created_at'],
+            'locked': int(r['locked'] or 0),
         })
     return out
 
@@ -1113,7 +1115,27 @@ def get_collector_sheet(sheet_id: int) -> Optional[Dict]:
         'rows': json.loads(r['rows_json'] or '[]'),
         'operator': r['operator'] or '',
         'created_at': r['created_at'],
+        'locked': int(r['locked'] or 0),
     }
+
+
+def set_collector_sheet_locked(sheet_id: int, locked: bool, operator: str = 'System',
+                               op_employee_id: str = '', ip_address: str = '') -> bool:
+    """设置收集表格的锁定状态（锁定后不可删除）"""
+    c = _conn()
+    t = c.execute('SELECT name FROM collector_sheets WHERE id=?', (sheet_id,)).fetchone()
+    if not t:
+        return False
+    c.execute('UPDATE collector_sheets SET locked=? WHERE id=?', (1 if locked else 0, sheet_id))
+    c.commit()
+    add_history(f"{'锁定' if locked else '解锁'}收集表格: {t['name']}",
+                operator, op_employee_id, ip_address)
+    return True
+
+
+def is_collector_sheet_locked(sheet_id: int) -> bool:
+    r = _conn().execute('SELECT locked FROM collector_sheets WHERE id=?', (sheet_id,)).fetchone()
+    return bool(r and r['locked'])
 
 
 def create_collector_sheet(sheet: Dict, ip_address: str = '') -> None:
@@ -1280,6 +1302,10 @@ def _ensure_schema_columns():
         c.execute('ALTER TABLE action_items ADD COLUMN progress TEXT')
     if 'extra_json' not in cols:
         c.execute("ALTER TABLE action_items ADD COLUMN extra_json TEXT DEFAULT '{}'")
+    # 数据收集表格：锁定标记（锁定后不可删除）
+    cols2 = [r['name'] for r in c.execute('PRAGMA table_info(collector_sheets)').fetchall()]
+    if 'locked' not in cols2:
+        c.execute('ALTER TABLE collector_sheets ADD COLUMN locked INTEGER DEFAULT 0')
     c.commit()
 
 

@@ -17,13 +17,13 @@
             <option value="已取消">已取消</option>
         </select>
     </div>
+    {% if can_edit %}
     <button onclick="showAddModal()" class="btn btn-primary">
         <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
         </svg>
         添加 Action Item
     </button>
-    {% if can_edit %}
     <button type="button" onclick="showColumnsModal()" class="btn btn-secondary">修改表头</button>
     {% endif %}
 </div>
@@ -372,6 +372,7 @@
 <script>
 let allItems = [];
 let columns = [];      // 列配置：[{key,label,builtin}]，由后端返回
+const canEdit = {{ 'true' if can_edit else 'false' }};   // 是否可编辑（无权限则隐藏所有编辑入口）
 
 function escapeHtml(s) {
     s = String(s == null ? '' : s);
@@ -381,13 +382,18 @@ function escapeHtml(s) {
 
 function loadActionItems() {
     fetch('/api/action-items')
-        .then(r => r.json())
+        .then(r => {
+            if (r.status === 401) { alert('登录已过期，请重新登录'); return null; }
+            return r.json();
+        })
         .then(data => {
+            if (!data) return;
             allItems = data.items || [];
             columns = data.columns || [];
             renderHead();
             renderTable();
-        });
+        })
+        .catch(() => alert('加载 Action Items 失败'));
 }
 
 // 根据列配置渲染表头与 colgroup（序号 + 各列 + 操作）
@@ -395,11 +401,11 @@ function renderHead() {
     document.getElementById('aiHeadRow').innerHTML =
         '<th class="seq-cell">序号</th>' +
         columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join('') +
-        '<th class="op-cell">操作</th>';
+        (canEdit ? '<th class="op-cell">操作</th>' : '');
     document.getElementById('aiColgroup').innerHTML =
         '<col class="col-seq">' +
         columns.map(() => '<col class="col-data">').join('') +
-        '<col class="col-op">';
+        (canEdit ? '<col class="col-op">' : '');
 }
 
 // 按列 key 渲染单元格（内置列有专门样式，自定义列取 item.extra）
@@ -431,7 +437,7 @@ function renderTable() {
     const filter = document.getElementById('statusFilter').value;
     const items = filter ? allItems.filter(i => i.status === filter) : allItems;
     const tbody = document.getElementById('actionItemsTable');
-    const colCount = columns.length + 2;
+    const colCount = columns.length + (canEdit ? 2 : 1);
     if (items.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${colCount}" class="empty-cell">暂无数据</td></tr>`;
         applyActionLayout();
@@ -442,12 +448,12 @@ function renderTable() {
         return `<tr class="${isOverdue ? 'row-overdue' : ''}">
             <td class="seq-cell text-secondary">${idx + 1}</td>
             ${columns.map(c => cellHtml(item, c)).join('')}
-            <td class="op-cell">
+            ${canEdit ? `<td class="op-cell">
                 <div class="row-actions">
                     <button onclick="showEditModal(${item.id})" class="btn-text btn-text-primary">编辑</button>
                     <button onclick="deleteItem(${item.id})" class="btn-text btn-text-danger">删除</button>
                 </div>
-            </td>
+            </td>` : ''}
         </tr>`;
     }).join('');
     applyActionLayout();
@@ -469,7 +475,7 @@ function applyActionLayout() {
     const wrap = table.closest('.table-wrapper') || table.parentElement;
     let totalW = wrap ? wrap.clientWidth : table.offsetWidth;
     if (!totalW) totalW = 900;
-    const seqW = 56, opW = 120;
+    const seqW = 56, opW = canEdit ? 120 : 0;
     const avail = Math.max(60, totalW - seqW - opW - 4);
 
     // 固定窄列：ETA（年月日）、DRI、状态（≤3字），内容宽度可预测、给进度让位

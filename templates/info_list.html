@@ -15,12 +15,14 @@
         </svg>
         <input type="text" id="searchInput" placeholder="搜索信息表..." class="search-input" oninput="filterTables(this.value)">
     </div>
+    {% if can_edit %}
     <button onclick="showAddTableModal()" class="btn btn-primary">
         <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
         </svg>
         添加信息表
     </button>
+    {% endif %}
 </div>
 
 <!-- 信息表列表 -->
@@ -415,6 +417,8 @@
 
 <script>
 let allTables = [];
+// 是否有信息列表编辑权限（无权限时隐藏所有编辑入口）
+const canEdit = {{ 'true' if can_edit else 'false' }};
 let currentTableId = null;
 
 function loadInfoTables() {
@@ -452,6 +456,7 @@ function renderTables() {
             <div class="info-table-card" data-table-id="${table.id}" data-table-name="${table.name.toLowerCase()}">
                 <div class="table-card-header">
                     <h3 class="table-card-title">${escapeHtml(table.name)}</h3>
+                    ${canEdit ? `
                     <div class="table-card-actions">
                         <button onclick="showAddRowModal(${table.id})" title="添加数据">
                             <svg style="width:14px;height:14px;vertical-align:middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -470,7 +475,7 @@ function renderTables() {
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                             </svg>
                         </button>
-                    </div>
+                    </div>` : ''}
                 </div>
                 <div class="table-card-body">
                     ${rows.length > 0 ? `
@@ -478,19 +483,19 @@ function renderTables() {
                             <thead>
                                 <tr>
                                     ${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}
-                                    <th class="col-actions">操作</th>
+                                    ${canEdit ? '<th class="col-actions">操作</th>' : ''}
                                 </tr>
                             </thead>
                             <tbody>
                                 ${rows.map((row, idx) => `
                                     <tr>
                                         ${headers.map(h => `<td>${cellHtml(row[h])}</td>`).join('')}
-                                        <td class="col-actions">
+                                        ${canEdit ? `<td class="col-actions">
                                             <div class="row-actions">
                                                 <button onclick="showEditRowModal(${table.id}, ${idx})">编辑</button>
                                                 <button class="delete-btn" onclick="deleteRow(${table.id}, ${idx})">删除</button>
                                             </div>
-                                        </td>
+                                        </td>` : ''}
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -501,7 +506,7 @@ function renderTables() {
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                             </svg>
                             <p>暂无数据</p>
-                            <button onclick="showAddRowModal(${table.id})" class="btn btn-primary btn-sm" style="margin-top:0.75rem">添加第一条数据</button>
+                            ${canEdit ? `<button onclick="showAddRowModal(${table.id})" class="btn btn-primary btn-sm" style="margin-top:0.75rem">添加第一条数据</button>` : ''}
                         </div>
                     `}
                 </div>
@@ -560,13 +565,7 @@ document.getElementById('addTableForm').onsubmit = function(e) {
             name: name,
             headers: headers
         })
-    }).then(r => r.json())
-      .then(data => {
-          if (data.success) {
-              closeAddTableModal();
-              loadInfoTables();
-          }
-      });
+    }).then(r => handleApiJson(r, function () { closeAddTableModal(); loadInfoTables(); }, '创建信息表失败'));
 };
 
 // 删除信息表
@@ -589,13 +588,7 @@ function confirmDelete() {
         method: 'DELETE',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({type: 'table'})
-    }).then(r => r.json())
-      .then(data => {
-          if (data.success) {
-              closeDeleteModal();
-              loadInfoTables();
-          }
-      });
+    }).then(r => handleApiJson(r, function () { closeDeleteModal(); loadInfoTables(); }, '删除信息表失败'));
 }
 
 // 添加行
@@ -649,13 +642,7 @@ document.getElementById('addRowForm').onsubmit = function(e) {
             table_id: tableId,
             row: row
         })
-    }).then(r => r.json())
-      .then(data => {
-          if (data.success) {
-              closeAddRowModal();
-              loadInfoTables();
-          }
-      });
+    }).then(r => handleApiJson(r, function () { closeAddRowModal(); loadInfoTables(); }, '添加数据失败'));
 };
 
 // 编辑行
@@ -712,13 +699,7 @@ document.getElementById('editRowForm').onsubmit = function(e) {
             row_index: rowIndex,
             row: row
         })
-    }).then(r => r.json())
-      .then(data => {
-          if (data.success) {
-              closeEditRowModal();
-              loadInfoTables();
-          }
-      });
+    }).then(r => handleApiJson(r, function () { closeEditRowModal(); loadInfoTables(); }, '保存数据失败'));
 };
 
 // 删除行
@@ -727,12 +708,7 @@ function deleteRow(tableId, rowIndex) {
         method: 'DELETE',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({type: 'row', row_index: rowIndex})
-    }).then(r => r.json())
-      .then(data => {
-          if (data.success) {
-              loadInfoTables();
-          }
-      });
+    }).then(r => handleApiJson(r, function () { loadInfoTables(); }, '删除数据失败'));
 }
 
 // ===== 表头管理 =====
