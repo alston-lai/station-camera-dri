@@ -1,8 +1,8 @@
 """
 数据管理器 - SQLite 存储实现
-把主要业务数据（人员 / Action / 信息表 / 数据收集 / 历史）存到 SQLite。
+把主要业务数据（人员 / Action / 信息表 / 数据收集 / 历史 / 用户 / 员工档案）存到 SQLite。
 保留与旧 JSON 实现一致的对外函数签名，方便上层 app.py 无缝切换。
-users.json 仍由 app.py 自行读取（未纳入本次迁移）。
+旧的 data/*.json 仅用于一次性迁移（已完成），日常运行不再读取。
 """
 import io
 import json

@@ -292,7 +292,7 @@ def login_page():
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
-    """登录验证 - 只允许 users.json 中的成员访问（含暴力破解限流）"""
+    """登录验证 - 只允许数据库 users 表中的成员访问（含暴力破解限流）"""
     ip = get_client_ip()
     data = request.json or {}
     employee_id = str(data.get('employee_id', '')).strip()
@@ -398,11 +398,15 @@ def admin_users():
 
 @app.route('/api/admin/unlock', methods=['POST'])
 def api_admin_unlock():
-    """校验管理密码，成功后签发短期 token（不写入 session）"""
+    """校验工号 + 管理密码，成功后签发短期 token（不写入 session）"""
     if not _is_admin_employee():
         return jsonify({'success': False, 'message': '无权限'}), 403
     data = request.json or {}
+    employee_id = str(data.get('employee_id', '')).strip()
     pwd = str(data.get('password', ''))
+    # 工号必须为指定的管理员工号
+    if not employee_id or not secrets.compare_digest(employee_id, ADMIN_EMPLOYEE_ID):
+        return jsonify({'success': False, 'message': '工号不正确'}), 403
     if pwd and secrets.compare_digest(pwd, ADMIN_PASSWORD):
         _prune_admin_tokens()
         return jsonify({'success': True, 'token': _issue_admin_token()})

@@ -6,13 +6,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     LUXAI_DB_PATH=/app/data/app.db \
+    TZ=Asia/Shanghai \
     FLASK_DEBUG=
 
 WORKDIR /app
 
-# openssl 用于加密备份（scripts/backup.py）
+# openssl 用于加密备份（scripts/backup.py）；tzdata 保证时区可用
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl \
+    && apt-get install -y --no-install-recommends openssl tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # 先装依赖，便于利用构建缓存
@@ -36,8 +37,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 
 # 单进程 + 多线程：与 SQLite(WAL) 最匹配，减少跨进程写锁；
 # 必须用 gthread（不能用默认 sync），否则空闲/半开连接会导致 WORKER TIMEOUT。
+# 不设置 --max-requests：单 worker 自我重启期间会出现短暂无响应。
 CMD ["gunicorn", "--chdir", "/app", "-b", "0.0.0.0:8000", \
      "-w", "1", "-k", "gthread", "--threads", "8", \
      "--timeout", "120", "--graceful-timeout", "30", \
-     "--keep-alive", "5", "--max-requests", "2000", \
+     "--keep-alive", "5", \
      "scripts.app:app"]

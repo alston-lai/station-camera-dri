@@ -10,6 +10,9 @@ services:
     environment:
       # 生产保持为空；如需调试模板热重载可设 true
       FLASK_DEBUG: ""
+      # 容器时区：影响写入数据库的时间戳（历史记录、创建时间等）。
+      # 不设置时容器为 UTC，会比本地慢 8 小时。
+      TZ: "Asia/Shanghai"
       # ⚠️ 会话 Cookie 是否仅经 HTTPS 传输。
       #   直接以 http://IP:8080 访问时必须为 "false"，否则登录后 Cookie 不会被带上，表现为“登录不了/打不开”。
       #   配好 HTTPS 反向代理后再改成 "true"。
@@ -30,9 +33,12 @@ services:
     # 关键：必须用 gthread（多线程）+ 合理的超时/keep-alive。
     # 若用默认 sync worker，遇到“连上但不发完整请求”的连接（浏览器预连接、端口探测、
     # 健康检查等）会阻塞并触发 WORKER TIMEOUT，worker 被反复杀掉 → 网站打不开。
+    # 注意：不要设置 --max-requests（或设为 0）。单 worker 下 worker 自我重启期间
+    # 会出现短暂无响应（表现为“突然打不开”）。确需回收可设很大的值，如
+    # --max-requests 100000 --max-requests-jitter 1000。
     command: >
       gunicorn -b 0.0.0.0:8000
       -w 1 -k gthread --threads 8
       --timeout 120 --graceful-timeout 30
-      --keep-alive 5 --max-requests 2000
+      --keep-alive 5
       app:app

@@ -58,33 +58,26 @@ station-camera-dri/
 │   └── data_manager.py  # 数据管理模块
 ├── templates/           # HTML 模板
 ├── static/              # CSS 和 JS
-├── data/                # JSON 数据存储
+├── data/                # SQLite 数据库 / 密钥 / 备份
 ├── requirements.txt     # Python 依赖
 └── README.md
 ```
 
 ## 数据存储
 
-所有数据存储在 `data/` 目录下的 JSON 文件中：
-- `staff.json` - 部门人员信息
-- `action_items.json` - Action Items
-- `info_list.json` - 信息列表
-- `collector.json` - 数据收集表格
-- `history.json` - 操作历史
+所有数据存储在 SQLite 数据库 **`data/app.db`** 中（已加入 `.gitignore`）。
+
+- **用户 / 人员 / 员工档案 / Action Items / 信息列表 / 数据收集 / 历史记录** 全部存于 `data/app.db`。
+- `data/` 目录下只需保留：`app.db`（及运行时产生的 `app.db-wal`、`app.db-shm`、`.secret_key`）与 `backups/`。
+  早期用于一次性迁移的 `staff.json`、`action_items.json`、`info_list.json`、`collector.json`、`history.json`、
+  `users.json`、`initial_data.json` 均已删除（数据已全部落库，程序运行不再读取它们）。
+- `data/users.json` 已删除，用户信息改存 `users` 表。
 
 ## 注意事项
 
-- 部署在内网时，确保防火墙允许 5000 端口访问
-- 建议定期备份 `data/` 目录
-- 可根据需要修改 `scripts/data_manager.py` 中的 DATA_DIR 变量改变数据存储位置
-## 数据存储（SQLite）
-
-主要业务数据已迁移到 SQLite，数据库文件：`data/app.db`（已加入 .gitignore）。
-
-- **人员 / Action Items / 信息列表 / 数据收集 / 历史记录** 都存于 `data/app.db`。
-- 首次启动（`init_all_data`）会自动把 `data/` 下对应的 JSON 一次性导入数据库（幂等，不会重复导入）。
-- `data/*.json` 保留为“迁移快照 / 备份”，作为导入数据源；日常增删改请通过页面或数据库进行。
-- `data/users.json`（账号权限白名单）仍使用 JSON，未纳入 SQLite。
+- 部署在内网时，确保防火墙允许对应端口访问
+- 建议定期做**加密备份**（见下文“安全与运维”）
+- 如需改变数据存储位置，可设置环境变量 `LUXAI_DB_PATH`
 
 ### 后台维护数据库
 
@@ -92,7 +85,6 @@ station-camera-dri/
 
 ```bash
 cd station-camera-dri/scripts
-../venv/...  # 视你环境选择解释器，下面用 python3 代表
 
 # 查看有哪些表及行数
 python3 db_admin.py tables
@@ -104,15 +96,15 @@ python3 db_admin.py dump staff --limit 50
 # 执行自定义 SQL（只读建议先查看，修改需谨慎）
 python3 db_admin.py query "SELECT department, COUNT(*) n FROM staff GROUP BY department"
 
-# 一键备份数据库到 data/backups/
-python3 db_admin.py backup
+# 加密备份数据库到 data/backups/（需 BACKUP_PASSWORD 环境变量）
+BACKUP_PASSWORD='口令' python3 db_admin.py backup
 
-# 把 SQLite 当前数据导出回 data/*.json（便于用编辑器查看/离线编辑）
+# 把 SQLite 当前数据导出回 data/*.json（便于用编辑器查看/离线编辑；按需生成）
 python3 db_admin.py export
-
-# 用现有 data/*.json 重建数据库（危险，请先 backup 并加 --force）
-python3 db_admin.py import --force
 ```
+
+> 注意：`db_admin.py import --force`（用 JSON 重建数据库）依赖 `data/*.json`。
+> 这些遗留 JSON 已删除，如确需使用，请先执行 `export` 重新生成。
 
 也可直接用系统自带的 `sqlite3 data/app.db` 或图形工具（如 DB Browser for SQLite）打开 `data/app.db`。
 改数据前建议先 `backup`。
@@ -141,7 +133,7 @@ cd station-camera-dri
 docker compose up -d --build
 ```
 
-浏览器访问：`http://<服务器IP>:8080`（登录用 `data/users.json` 中的工号+姓名）。
+浏览器访问：`http://<服务器IP>:8080`（登录用数据库 `users` 表中的工号+姓名）。
 
 ### 不使用 compose 时
 
@@ -157,7 +149,7 @@ docker run -d --name dri --restart unless-stopped \
   - 用户表 `users`（替代原 `data/users.json`，该文件已移除）；
   - 员工档案表 `personnel_files`（首次启动会从 `档案信息.xlsx` 一次性导入后即可删除该文件）。
 - `data/` 目录以数据卷挂载到容器 `/app/data`，`app.db` 随容器重建保留。
-- `data/app.db*`、`data/backups/`、`data/users.json` 已在 `.gitignore` / `.dockerignore` 中排除，不会进镜像。
+- `data/app.db*`、`data/backups/`、`data/users.json`、`data/.secret_key` 已在 `.gitignore` / `.dockerignore` 中排除，不会进镜像。
 
 ### 安全与运维
 
