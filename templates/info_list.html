@@ -81,6 +81,35 @@
     </div>
 </div>
 
+<!-- 表头管理 Modal -->
+<div id="headersModal" class="modal-overlay hidden" onclick="closeHeadersModal()">
+    <div class="modal-card modal-medium" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">修改表头</h3>
+            <button onclick="closeHeadersModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="headersForm" class="modal-form">
+            <input type="hidden" name="table_id">
+            <div id="headersFields"><!-- 动态生成 --></div>
+            <div class="form-group" style="display:flex;gap:8px;align-items:center;">
+                <input type="text" id="newHeaderInput" class="form-input" placeholder="输入新列名，例如：备注">
+                <button type="button" class="modal-btn modal-btn-cancel" onclick="addHeaderField()" style="white-space:nowrap;">增加一列</button>
+            </div>
+            <div class="form-hint" style="margin-top:-6px;color:#86868b;font-size:12px;">
+                可直接修改列名；点行尾「删除」移除列（该列数据会被丢弃）。新增列后原数据该列为空。
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeHeadersModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">保存表头</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- 编辑行 Modal -->
 <div id="editRowModal" class="modal-overlay hidden" onclick="closeEditRowModal()">
     <div class="modal-card modal-large" onclick="event.stopPropagation()">
@@ -430,6 +459,12 @@ function renderTables() {
                             </svg>
                             添加
                         </button>
+                        <button onclick="showHeadersModal(${table.id})" title="修改表头 / 增加列">
+                            <svg style="width:14px;height:14px;vertical-align:middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h10"/>
+                            </svg>
+                            表头
+                        </button>
                         <button onclick="deleteTable(${table.id})" title="删除表">
                             <svg style="width:14px;height:14px;vertical-align:middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -699,6 +734,67 @@ function deleteRow(tableId, rowIndex) {
           }
       });
 }
+
+// ===== 表头管理 =====
+function headerRowHtml(value) {
+    return `<div class="form-group header-row" style="display:flex;gap:8px;align-items:center;">
+        <input type="text" class="form-input header-input" value="${escapeAttr(value)}" placeholder="列名">
+        <button type="button" class="modal-btn modal-btn-cancel" style="white-space:nowrap;"
+                onclick="this.closest('.header-row').remove()">删除</button>
+    </div>`;
+}
+
+function showHeadersModal(tableId) {
+    const table = allTables.find(t => t.id === tableId);
+    if (!table) return;
+    const form = document.getElementById('headersForm');
+    form.table_id.value = tableId;
+    const headers = table.headers || ['Key', 'Value'];
+    document.getElementById('headersFields').innerHTML = headers.map(h => headerRowHtml(h)).join('');
+    document.getElementById('newHeaderInput').value = '';
+    document.getElementById('headersModal').classList.remove('hidden');
+    document.getElementById('headersModal').classList.add('flex');
+}
+
+function closeHeadersModal() {
+    document.getElementById('headersModal').classList.add('hidden');
+    document.getElementById('headersModal').classList.remove('flex');
+}
+
+function addHeaderField() {
+    const input = document.getElementById('newHeaderInput');
+    const name = (input.value || '').trim();
+    if (!name) { alert('请输入新列名'); return; }
+    document.getElementById('headersFields').insertAdjacentHTML('beforeend', headerRowHtml(name));
+    input.value = '';
+    input.focus();
+}
+
+document.getElementById('headersForm').onsubmit = function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const tableId = parseInt(form.table_id.value);
+    const inputs = form.querySelectorAll('#headersFields .header-input');
+    const headers = [];
+    inputs.forEach(el => {
+        const v = (el.value || '').trim();
+        if (v) headers.push(v);
+    });
+    if (!headers.length) { alert('表头不能为空'); return; }
+    if (new Set(headers).size !== headers.length) { alert('列名不能重复'); return; }
+
+    fetch(`/api/info-list/${tableId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'update_headers', headers: headers})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) { closeHeadersModal(); loadInfoTables(); }
+        else { alert(data.message || '保存失败'); }
+    })
+    .catch(() => alert('请求失败'));
+};
 
 // 工具函数
 function escapeHtml(text) {

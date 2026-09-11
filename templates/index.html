@@ -413,7 +413,7 @@ Promise.all([
     fetch('/api/info-list').then(function(r) { return r.json(); }),
     fetch('/api/collector').then(function(r) { return r.json(); })
 ]).then(function(results) {
-    var actions = results[0];
+    var actions = (results[0] && results[0].items) ? results[0].items : (results[0] || []);
     var infoList = results[1];
     var sheets = results[2];
     

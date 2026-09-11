@@ -29,10 +29,14 @@ from data_manager import (
     update_department_record, delete_department_record,
     get_personnel_file, update_personnel_file,
     get_all_users, get_user, upsert_user, delete_user,
+    read_tabular_rows,
     get_all_action_items, add_action_item, update_action_item, delete_action_item,
+    get_action_columns, set_action_columns,
     get_all_info_list, create_info_table, add_info_row, update_info_row, delete_info_table, delete_info_row,
+    update_info_table_headers,
     get_collector_sheets, get_collector_sheet, create_collector_sheet,
     add_collector_row, update_collector_row, delete_collector_row, delete_collector_sheet,
+    update_collector_sheet_headers,
     get_history, add_history,
     export_staff_to_excel, import_staff_from_excel
 )
@@ -870,9 +874,26 @@ def action_items():
 @app.route('/api/action-items')
 @api_login_required
 def api_action_items():
-    """获取所有 Action Items"""
+    """获取所有 Action Items 及列配置"""
     items = get_all_action_items()
-    return jsonify(items)
+    return jsonify({'items': items, 'columns': get_action_columns()})
+
+
+@app.route('/api/action-items/columns', methods=['POST'])
+def api_action_items_columns():
+    """修改 Action Items 的列（表头改名 / 增加列 / 删除自定义列）"""
+    if 'user' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    user = session['user']
+    if not user.get('can_edit_action_items', False):
+        return jsonify({'success': False, 'message': '您没有权限修改Action Items，请联系主管开通权限'}), 403
+    data = request.json or {}
+    columns = data.get('columns', [])
+    if not set_action_columns(columns):
+        return jsonify({'success': False, 'message': '列配置无效（内置列必须保留）'}), 400
+    add_history('修改 Action Items 表头', user.get('name', 'Unknown'),
+                user.get('employee_id', ''), get_client_ip())
+    return jsonify({'success': True})
 
 
 @app.route('/api/action-items', methods=['POST'])
@@ -893,6 +914,7 @@ def api_action_items_add():
         'eta': data.get('eta', ''),
         'progress': data.get('progress', ''),
         'status': '进行中',
+        'extra': data.get('extra', {}),
         'operator': user.get('name', user.get('employee_id', 'Unknown'))
     }, ip_address)
     return jsonify({'success': True})
@@ -1007,6 +1029,16 @@ def api_info_list_update(table_id):
             return jsonify({'success': False, 'message': '缺少行索引'}), 400
         operator = user.get('name', user.get('employee_id', 'Unknown'))
         update_info_row(table_id, row_index, row, operator, op_employee_id, ip_address)
+        return jsonify({'success': True})
+
+    elif action == 'update_headers':
+        headers = data.get('headers', [])
+        if not headers:
+            return jsonify({'success': False, 'message': '表头不能为空'}), 400
+        operator = user.get('name', user.get('employee_id', 'Unknown'))
+        ok = update_info_table_headers(table_id, headers, operator, op_employee_id, ip_address)
+        if not ok:
+            return jsonify({'success': False, 'message': '保存表头失败'}), 400
         return jsonify({'success': True})
     
     return jsonify({'success': False, 'message': '未知操作'}), 400
@@ -1192,6 +1224,25 @@ def api_collector_delete_sheet(sheet_id):
     return jsonify({'success': True})
 
 
+@app.route('/api/collector/<int:sheet_id>/headers', methods=['POST'])
+def api_collector_update_headers(sheet_id):
+    """修改收集表格的表头（重命名/新增/删除列）"""
+    if 'user' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    user = session['user']
+    data = request.json or {}
+    headers = data.get('headers', [])
+    if not headers:
+        return jsonify({'success': False, 'message': '表头不能为空'}), 400
+    ok = update_collector_sheet_headers(
+        sheet_id, headers,
+        user.get('name', user.get('employee_id', 'Unknown')),
+        user.get('employee_id', ''), get_client_ip())
+    if not ok:
+        return jsonify({'success': False, 'message': '保存表头失败'}), 400
+    return jsonify({'success': True})
+
+
 @app.route('/api/collector/<int:sheet_id>/export')
 @api_login_required
 def api_collector_export(sheet_id):
@@ -1230,46 +1281,35 @@ def api_collector_export(sheet_id):
 
 @app.route('/api/collector/<int:sheet_id>/import', methods=['POST'])
 def api_collector_import(sheet_id):
-    """导入 CSV"""
+    """导入 CSV / Excel（.xlsx/.xls）"""
     if 'user' not in session:
         return jsonify({'success': False, 'message': '请先登录'}), 401
     
     # 检查是否有文件
     if 'file' not in request.files:
-        return jsonify({'success': False, 'message': '请选择要上传的 CSV 文件'}), 400
+        return jsonify({'success': False, 'message': '请选择要上传的文件'}), 400
     
     file = request.files['file']
     if file.filename == '':
-        return jsonify({'success': False, 'message': '请选择要上传的 CSV 文件'}), 400
+        return jsonify({'success': False, 'message': '请选择要上传的文件'}), 400
     
-    # 检查文件类型
-    if not file.filename.lower().endswith('.csv'):
-        return jsonify({'success': False, 'message': '只支持 CSV 格式文件'}), 400
+    # 检查文件类型：CSV 或 Excel
+    fname = file.filename.lower()
+    if not fname.endswith(('.csv', '.xlsx', '.xls', '.xlsm')):
+        return jsonify({'success': False, 'message': '只支持 CSV 或 Excel（.xlsx/.xls）格式文件'}), 400
     
-    # 读取并解析 CSV
+    # 读取并解析文件（CSV/Excel 统一处理）
     try:
-        # 读取文件内容（兼容处理 SpooledTemporaryFile）
         file_content = file.read()
-        
-        # 如果文件已写入 spooled，seek 回开头
         if hasattr(file, 'seek'):
             file.seek(0)
-        
-        # 尝试用 utf-8-sig 解码（处理 BOM），如果失败则用 utf-8
-        try:
-            content_str = file_content.decode('utf-8-sig')
-        except UnicodeDecodeError:
-            content_str = file_content.decode('utf-8')
-        
-        # 使用 StringIO 解析 CSV
-        reader = csv.reader(io.StringIO(content_str))
-        rows = list(reader)
+        rows = read_tabular_rows(file.filename, file_content)
         
         if len(rows) < 2:
-            return jsonify({'success': False, 'message': 'CSV 文件内容为空或格式错误'}), 400
+            return jsonify({'success': False, 'message': '文件内容为空或格式错误（至少需要表头+1行数据）'}), 400
         
-        # 获取 CSV 表头
-        csv_headers = [h.strip() for h in rows[0]]
+        # 获取文件表头
+        file_headers = [(h or '').strip() for h in rows[0]]
         
         # 获取表格的表头
         sheet = get_collector_sheet(sheet_id)
@@ -1278,15 +1318,16 @@ def api_collector_import(sheet_id):
         
         expected_headers = sheet.get('headers', [])
         
-        # 建立 CSV 表头到索引的映射
-        csv_header_map = {}
-        for idx, csv_header in enumerate(csv_headers):
-            csv_header_map[csv_header] = idx
+        # 建立 文件表头 -> 索引 的映射
+        file_header_map = {}
+        for idx, h in enumerate(file_headers):
+            if h:
+                file_header_map[h] = idx
         
-        # 检查是否有匹配的列，如果没有匹配的则返回失败
-        matched_headers = [h for h in expected_headers if h in csv_header_map]
+        # 检查是否有匹配的列
+        matched_headers = [h for h in expected_headers if h in file_header_map]
         if not matched_headers:
-            return jsonify({'success': False, 'message': 'CSV 文件中没有匹配的列，无法导入'}), 400
+            return jsonify({'success': False, 'message': '文件中没有与表格匹配的列，无法导入。请确认文件表头与表格表头一致'}), 400
         
         # 导入数据行
         user = session['user']
@@ -1295,13 +1336,12 @@ def api_collector_import(sheet_id):
         skipped_count = 0
         
         for row in rows[1:]:  # 跳过表头
-            # 检查是否所有匹配列都为空，如果是则跳过该行
             has_data = False
             row_data = {}
             
             for header in matched_headers:
-                csv_idx = csv_header_map[header]
-                value = row[csv_idx].strip() if csv_idx < len(row) else ''
+                idx = file_header_map[header]
+                value = row[idx].strip() if idx < len(row) and row[idx] is not None else ''
                 row_data[header.lower()] = value
                 if value:
                     has_data = True
@@ -1322,8 +1362,8 @@ def api_collector_import(sheet_id):
             'skipped_count': skipped_count
         })
         
-    except csv.Error as e:
-        return jsonify({'success': False, 'message': f'CSV 解析错误: {str(e)}'}), 400
+    except ValueError as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
     except Exception as e:
         return jsonify({'success': False, 'message': f'导入失败: {str(e)}'}), 500
 

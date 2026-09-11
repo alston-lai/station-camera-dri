@@ -4,6 +4,7 @@
 保留与旧 JSON 实现一致的对外函数签名，方便上层 app.py 无缝切换。
 旧的 data/*.json 仅用于一次性迁移（已完成），日常运行不再读取。
 """
+import csv
 import io
 import json
 import os
@@ -131,7 +132,8 @@ CREATE TABLE IF NOT EXISTS action_items (
     progress   TEXT,
     operator   TEXT,
     created_at TEXT,
-    updated_at TEXT
+    updated_at TEXT,
+    extra_json TEXT DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS info_tables (
@@ -847,18 +849,78 @@ def import_personnel_files_from_excel_once() -> int:
 
 
 # ===== Action Items =====
+# 列配置：内置列（key 固定、不可删除）+ 自定义列（存储在 extra_json 中）。
+ACTION_BASE_COLUMNS = [
+    {'key': 'title', 'label': '标题', 'builtin': True},
+    {'key': 'progress', 'label': '进度', 'builtin': True},
+    {'key': 'eta', 'label': 'ETA', 'builtin': True},
+    {'key': 'dri', 'label': 'DRI', 'builtin': True},
+    {'key': 'status', 'label': '状态', 'builtin': True},
+]
+
+
+def get_action_columns() -> List[Dict]:
+    """获取 Action Items 的列配置（含内置列改名与自定义列）"""
+    raw = _meta_get('action_items_columns')
+    if not raw:
+        return [dict(c) for c in ACTION_BASE_COLUMNS]
+    try:
+        cols = json.loads(raw)
+        if isinstance(cols, list) and cols:
+            return cols
+    except Exception:
+        pass
+    return [dict(c) for c in ACTION_BASE_COLUMNS]
+
+
+def set_action_columns(columns: List[Dict]) -> bool:
+    """保存 Action Items 列配置。内置列必须保留（key 不可变），自定义列 key 以 c_ 前缀。"""
+    base_keys = {c['key'] for c in ACTION_BASE_COLUMNS}
+    clean = []
+    seen = set()
+    for c in columns or []:
+        key = str(c.get('key', '')).strip()
+        label = str(c.get('label', '')).strip()
+        if not key or not label or key in seen:
+            continue
+        if key in base_keys:
+            clean.append({'key': key, 'label': label, 'builtin': True})
+        else:
+            if not key.startswith('c_'):
+                continue
+            clean.append({'key': key, 'label': label, 'builtin': False})
+        seen.add(key)
+    # 内置列必须齐全
+    if not base_keys.issubset(seen):
+        return False
+    _meta_set('action_items_columns', json.dumps(clean, ensure_ascii=False))
+    return True
+
+
+def _action_row_to_dict(row) -> Dict:
+    d = dict(row)
+    try:
+        d['extra'] = json.loads(d.get('extra_json') or '{}')
+    except Exception:
+        d['extra'] = {}
+    return d
+
+
 def get_all_action_items() -> List[Dict]:
     c = _conn()
     rows = c.execute('SELECT * FROM action_items ORDER BY id ASC').fetchall()
-    return [dict(r) for r in rows]
+    return [_action_row_to_dict(r) for r in rows]
 
 
 def add_action_item(item: Dict, ip_address: str = '') -> None:
     c = _conn()
+    extra = item.get('extra', {}) or {}
     cur = c.execute(
-        'INSERT INTO action_items(title,dri,eta,status,progress,operator,created_at) VALUES(?,?,?,?,?,?,?)',
+        'INSERT INTO action_items(title,dri,eta,status,progress,operator,created_at,extra_json)'
+        ' VALUES(?,?,?,?,?,?,?,?)',
         (item.get('title', ''), item.get('dri', ''), item.get('eta', ''),
-         item.get('status', '进行中'), item.get('progress', ''), item.get('operator', ''), _now_minute()))
+         item.get('status', '进行中'), item.get('progress', ''), item.get('operator', ''),
+         _now_minute(), json.dumps(extra, ensure_ascii=False)))
     item['id'] = cur.lastrowid
     item['created_at'] = _now_minute()
     c.commit()
@@ -875,6 +937,9 @@ def update_action_item(item_id: int, updates: Dict, ip_address: str = '') -> Non
         if f in updates:
             sets.append(f'{f}=?')
             vals.append(updates[f])
+    if 'extra' in updates:
+        sets.append('extra_json=?')
+        vals.append(json.dumps(updates.get('extra') or {}, ensure_ascii=False))
     if not sets:
         return
     sets.append('updated_at=?')
@@ -978,6 +1043,43 @@ def delete_info_row(table_id: int, row_index: int, operator: str = 'System',
                   (json.dumps(rows, ensure_ascii=False), table_id))
         c.commit()
     add_history(f"信息表 #{table_id} 删除第 {row_index + 1} 行", operator, op_employee_id, ip_address)
+
+
+def update_info_table_headers(table_id: int, new_headers: List[str], operator: str = 'System',
+                              op_employee_id: str = '', ip_address: str = '') -> bool:
+    """修改信息表的表头（重命名/新增/删除列），并按列顺序迁移已有数据。
+    - 重命名：旧列数据移动到新列名下
+    - 新增列：已有行该列填空
+    - 删除列：丢弃该列数据
+    """
+    new_headers = [str(h).strip() for h in (new_headers or []) if str(h).strip()]
+    if not new_headers:
+        return False
+    c = _conn()
+    t = _get_info_table(table_id)
+    if not t:
+        return False
+    old_headers = json.loads(t['headers_json'] or '[]')
+    rows = json.loads(t['rows_json'] or '[]')
+    new_rows = []
+    for row in rows:
+        nr = {}
+        for i, nh in enumerate(new_headers):
+            val = ''
+            if i < len(old_headers):
+                old_key = old_headers[i]
+                if old_key in row:
+                    val = row[old_key]
+            if not val and nh in row:   # 兼容同名列直接命中
+                val = row[nh]
+            nr[nh] = val
+        new_rows.append(nr)
+    c.execute('UPDATE info_tables SET headers_json=?, rows_json=? WHERE id=?',
+              (json.dumps(new_headers, ensure_ascii=False),
+               json.dumps(new_rows, ensure_ascii=False), table_id))
+    c.commit()
+    add_history(f"信息表 #{table_id} 修改表头", operator, op_employee_id, ip_address)
+    return True
 
 
 # ===== 数据收集表格 =====
@@ -1087,6 +1189,45 @@ def delete_collector_sheet(sheet_id: int, operator: str = 'System',
         add_history(f"删除收集表格: {sheet_name}", operator, op_employee_id, ip_address)
 
 
+def update_collector_sheet_headers(sheet_id: int, new_headers: List[str], operator: str = 'System',
+                                   op_employee_id: str = '', ip_address: str = '') -> bool:
+    """修改收集表格的表头（重命名/新增/删除列），并按列顺序迁移已有数据。
+    行的键为 header 的小写形式（与新增/编辑行时一致）。"""
+    new_headers = [str(h).strip() for h in (new_headers or []) if str(h).strip()]
+    if not new_headers:
+        return False
+    c = _conn()
+    t = c.execute('SELECT * FROM collector_sheets WHERE id=?', (sheet_id,)).fetchone()
+    if not t:
+        return False
+    old_headers = json.loads(t['headers_json'] or '[]')
+    rows = json.loads(t['rows_json'] or '[]')
+    new_rows = []
+    for row in rows:
+        nr = {}
+        for i, nh in enumerate(new_headers):
+            key = nh.lower()
+            val = ''
+            if i < len(old_headers):
+                old_key = str(old_headers[i]).lower()
+                if old_key in row:
+                    val = row[old_key]
+            if not val and key in row:   # 兼容同名列直接命中
+                val = row[key]
+            nr[key] = val
+        # 保留系统字段（操作人/时间等），避免丢失
+        for syskey in ('operator', 'created_at', 'updated_at', 'employee_id'):
+            if syskey in row:
+                nr[syskey] = row[syskey]
+        new_rows.append(nr)
+    c.execute('UPDATE collector_sheets SET headers_json=?, rows_json=? WHERE id=?',
+              (json.dumps(new_headers, ensure_ascii=False),
+               json.dumps(new_rows, ensure_ascii=False), sheet_id))
+    c.commit()
+    add_history(f"收集表格 #{sheet_id} 修改表头", operator, op_employee_id, ip_address)
+    return True
+
+
 # ===== 初始化 =====
 def _ensure_schema_columns():
     """对已存在的数据库执行增量列迁移（幂等）。"""
@@ -1094,6 +1235,8 @@ def _ensure_schema_columns():
     cols = [r['name'] for r in c.execute('PRAGMA table_info(action_items)').fetchall()]
     if 'progress' not in cols:
         c.execute('ALTER TABLE action_items ADD COLUMN progress TEXT')
+    if 'extra_json' not in cols:
+        c.execute("ALTER TABLE action_items ADD COLUMN extra_json TEXT DEFAULT '{}'")
     c.commit()
 
 
@@ -1108,6 +1251,40 @@ def init_all_data() -> None:
     _migrate_users_from_json()       # users.json -> users 表（一次性）
     bootstrap_admin_if_empty()       # 全新部署可用环境变量创建初始管理员
     import_personnel_files_from_excel_once()  # 档案信息.xlsx -> personnel_files（一次性）
+
+
+# ===== 通用表格文件解析（CSV / Excel）=====
+def _cell_to_str(value) -> str:
+    """把单元格值规范成字符串：日期->YYYY-MM-DD，整数值去掉 .0，None->''"""
+    if value is None:
+        return ''
+    if isinstance(value, datetime):
+        return value.strftime('%Y-%m-%d')
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
+def read_tabular_rows(filename: str, content: bytes) -> List[List[str]]:
+    """把上传的表格文件解析为二维字符串列表，支持 .csv / .xlsx / .xls。
+    第一行通常是表头。解析失败会抛 ValueError。"""
+    name = (filename or '').lower()
+    if name.endswith('.csv') or name.endswith('.txt'):
+        try:
+            text = content.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            text = content.decode('gbk', errors='replace')
+        return [[(_cell_to_str(c)) for c in row] for row in csv.reader(io.StringIO(text))]
+    if name.endswith(('.xlsx', '.xlsm', '.xls')):
+        if openpyxl is None:
+            raise ValueError('服务器未安装 openpyxl，无法解析 Excel')
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+        except Exception as e:
+            raise ValueError(f'Excel 解析失败: {e}')
+        ws = wb.worksheets[0]
+        return [[_cell_to_str(v) for v in row] for row in ws.iter_rows(values_only=True)]
+    raise ValueError('不支持的文件类型，请上传 CSV 或 Excel（.xlsx/.xls）')
 
 
 # ===== Excel 导入导出 =====

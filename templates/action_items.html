@@ -23,31 +23,18 @@
         </svg>
         添加 Action Item
     </button>
+    {% if can_edit %}
+    <button type="button" onclick="showColumnsModal()" class="btn btn-secondary">修改表头</button>
+    {% endif %}
 </div>
 
 <div class="card">
     <div class="card-body p-0">
         <div class="table-wrapper">
             <table class="data-table">
-                <colgroup>
-                    <col class="col-seq">
-                    <col class="col-data">
-                    <col class="col-data">
-                    <col class="col-data">
-                    <col class="col-data">
-                    <col class="col-data">
-                    <col class="col-op">
-                </colgroup>
+                <colgroup id="aiColgroup"></colgroup>
                 <thead>
-                    <tr>
-                        <th class="seq-cell">序号</th>
-                        <th>标题</th>
-                        <th>进度</th>
-                        <th class="narrow-col">ETA</th>
-                        <th class="narrow-col">DRI</th>
-                        <th class="narrow-col">状态</th>
-                        <th class="op-cell">操作</th>
-                    </tr>
+                    <tr id="aiHeadRow"></tr>
                 </thead>
                 <tbody id="actionItemsTable">
                     <tr><td colspan="7" class="loading-cell"><div class="spinner"></div></td></tr>
@@ -87,6 +74,7 @@
                 <label class="form-label">进度</label>
                 <textarea name="progress" rows="4" class="form-input progress-textarea" placeholder="已完成的细节、正在进行的细节、后续计划、遇到的问题等"></textarea>
             </div>
+            <div id="addExtraFields"><!-- 自定义列（动态生成） --></div>
             <div class="modal-footer">
                 <button type="button" onclick="closeAddModal()" class="modal-btn modal-btn-cancel">取消</button>
                 <button type="submit" class="modal-btn modal-btn-primary">添加</button>
@@ -134,9 +122,38 @@
                     <option value="已取消">已取消</option>
                 </select>
             </div>
+            <div id="editExtraFields"><!-- 自定义列（动态生成） --></div>
             <div class="modal-footer">
                 <button type="button" onclick="closeEditModal()" class="modal-btn modal-btn-cancel">取消</button>
                 <button type="submit" class="modal-btn modal-btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 表头管理 Modal -->
+<div id="columnsModal" class="modal-overlay hidden" onclick="closeColumnsModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 class="modal-title">修改表头 / 增加列</h3>
+            <button onclick="closeColumnsModal()" class="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form id="columnsForm" class="modal-form">
+            <div id="columnsFields"><!-- 动态生成 --></div>
+            <div class="form-group" style="display:flex;gap:8px;align-items:center;">
+                <input type="text" id="newColumnInput" class="form-input" placeholder="输入新列名，例如：备注">
+                <button type="button" class="modal-btn modal-btn-cancel" style="white-space:nowrap;" onclick="addColumnField()">增加一列</button>
+            </div>
+            <div style="color:#86868b;font-size:12px;margin:-6px 0 10px;">
+                内置列（标题/进度/ETA/DRI/状态）可改名但不可删除；自定义列可改名或删除（删除后该列数据不再显示）。
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeColumnsModal()" class="modal-btn modal-btn-cancel">取消</button>
+                <button type="submit" class="modal-btn modal-btn-primary">保存表头</button>
             </div>
         </form>
     </div>
@@ -354,52 +371,84 @@
 
 <script>
 let allItems = [];
+let columns = [];      // 列配置：[{key,label,builtin}]，由后端返回
+
+function escapeHtml(s) {
+    s = String(s == null ? '' : s);
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 function loadActionItems() {
     fetch('/api/action-items')
         .then(r => r.json())
         .then(data => {
-            allItems = data;
+            allItems = data.items || [];
+            columns = data.columns || [];
+            renderHead();
             renderTable();
         });
+}
+
+// 根据列配置渲染表头与 colgroup（序号 + 各列 + 操作）
+function renderHead() {
+    document.getElementById('aiHeadRow').innerHTML =
+        '<th class="seq-cell">序号</th>' +
+        columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join('') +
+        '<th class="op-cell">操作</th>';
+    document.getElementById('aiColgroup').innerHTML =
+        '<col class="col-seq">' +
+        columns.map(() => '<col class="col-data">').join('') +
+        '<col class="col-op">';
+}
+
+// 按列 key 渲染单元格（内置列有专门样式，自定义列取 item.extra）
+function cellHtml(item, col) {
+    const isOverdue = item.eta && new Date(item.eta) < new Date() && item.status === '进行中';
+    if (col.key === 'title') {
+        return `<td class="data-cell"><span class="font-medium">${escapeHtml(item.title)}</span></td>`;
+    }
+    if (col.key === 'progress') {
+        return `<td class="data-cell progress-cell">${item.progress ? escapeHtml(item.progress) : '<span class="text-secondary">-</span>'}</td>`;
+    }
+    if (col.key === 'eta') {
+        return `<td class="data-cell narrow-col ${isOverdue ? 'text-danger font-semibold' : ''}">` +
+            `${escapeHtml(item.eta) || '-'}` +
+            `${isOverdue ? ' <span class="badge badge-danger ml-2">逾期</span>' : ''}</td>`;
+    }
+    if (col.key === 'dri') {
+        return `<td class="data-cell narrow-col">${item.dri ? escapeHtml(item.dri) : '<span class="text-secondary">-</span>'}</td>`;
+    }
+    if (col.key === 'status') {
+        const cls = item.status === '已完成' ? 'success' : item.status === '已取消' ? 'secondary' : 'info';
+        return `<td class="data-cell narrow-col"><span class="badge badge-${cls}">${escapeHtml(item.status)}</span></td>`;
+    }
+    const v = (item.extra || {})[col.key];
+    return `<td class="data-cell">${v ? escapeHtml(v) : '<span class="text-secondary">-</span>'}</td>`;
 }
 
 function renderTable() {
     const filter = document.getElementById('statusFilter').value;
     const items = filter ? allItems.filter(i => i.status === filter) : allItems;
-    
     const tbody = document.getElementById('actionItemsTable');
+    const colCount = columns.length + 2;
     if (items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">暂无数据</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${colCount}" class="empty-cell">暂无数据</td></tr>`;
         applyActionLayout();
         return;
     }
-    
     tbody.innerHTML = items.map((item, idx) => {
         const isOverdue = item.eta && new Date(item.eta) < new Date() && item.status === '进行中';
-        return `
-            <tr class="${isOverdue ? 'row-overdue' : ''}">
-                <td class="seq-cell text-secondary">${idx + 1}</td>
-                <td class="data-cell"><span class="font-medium">${item.title}</span></td>
-                <td class="data-cell progress-cell">${item.progress || '<span class="text-secondary">-</span>'}</td>
-                <td class="data-cell narrow-col ${isOverdue ? 'text-danger font-semibold' : ''}">
-                    ${item.eta || '-'}
-                    ${isOverdue ? '<span class="badge badge-danger ml-2">逾期</span>' : ''}
-                </td>
-                <td class="data-cell narrow-col">${item.dri || '<span class="text-secondary">-</span>'}</td>
-                <td class="data-cell narrow-col">
-                    <span class="badge badge-${item.status === '已完成' ? 'success' : item.status === '已取消' ? 'secondary' : 'info'}">
-                        ${item.status}
-                    </span>
-                </td>
-                <td class="op-cell">
-                    <div class="row-actions">
-                        <button onclick="showEditModal(${item.id})" class="btn-text btn-text-primary">编辑</button>
-                        <button onclick="deleteItem(${item.id})" class="btn-text btn-text-danger">删除</button>
-                    </div>
-                </td>
-            </tr>
-        `;
+        return `<tr class="${isOverdue ? 'row-overdue' : ''}">
+            <td class="seq-cell text-secondary">${idx + 1}</td>
+            ${columns.map(c => cellHtml(item, c)).join('')}
+            <td class="op-cell">
+                <div class="row-actions">
+                    <button onclick="showEditModal(${item.id})" class="btn-text btn-text-primary">编辑</button>
+                    <button onclick="deleteItem(${item.id})" class="btn-text btn-text-danger">删除</button>
+                </div>
+            </td>
+        </tr>`;
     }).join('');
     applyActionLayout();
 }
@@ -424,18 +473,19 @@ function applyActionLayout() {
     const avail = Math.max(60, totalW - seqW - opW - 4);
 
     // 固定窄列：ETA（年月日）、DRI、状态（≤3字），内容宽度可预测、给进度让位
-    const fixedW = { 'ETA': 118, 'DRI': 90, '状态': 84 };
+    // 注意：按“列 key”判断，表头改名后依然生效
+    const fixedW = { eta: 118, dri: 90, status: 84 };
     const flexIdxs = [];      // 数据列序号(d)
     const flexWeights = [];
     const fixedVals = {};     // d -> width
     for (let d = 0; d < nData; d++) {
         const colIdx = 1 + d;
-        const header = (head[colIdx] ? head[colIdx].innerText : '').trim();
-        if (Object.prototype.hasOwnProperty.call(fixedW, header)) {
-            fixedVals[d] = fixedW[header];
+        const key = (columns[d] && columns[d].key) || '';
+        if (Object.prototype.hasOwnProperty.call(fixedW, key)) {
+            fixedVals[d] = fixedW[key];
             continue;
         }
-        let max = header.length;
+        let max = ((head[colIdx] ? head[colIdx].innerText : '') || '').trim().length;
         for (let r = 0; r < body.length; r++) {
             const cell = body[r].cells[colIdx];
             if (!cell) continue;
@@ -454,9 +504,8 @@ function applyActionLayout() {
     // 标题列保底宽度：容纳约 6 个汉字（含单元格内边距）
     const TITLE_MIN = 170;
     const flexMins = flexIdxs.map(function (d) {
-        const colIdx = 1 + d;
-        const h = (head[colIdx] ? head[colIdx].innerText : '').trim();
-        return h === '标题' ? TITLE_MIN : 90;
+        const key = (columns[d] && columns[d].key) || '';
+        return key === 'title' ? TITLE_MIN : 90;
     });
     // 弹性列分配
     let overflow = false;
@@ -503,7 +552,29 @@ function applyActionLayout() {
     });
 }
 
+// ===== 自定义列（extra）辅助 =====
+function customColumns() {
+    return columns.filter(c => !c.builtin);
+}
+function renderExtraFields(containerId, extra) {
+    const wrap = document.getElementById(containerId);
+    if (!wrap) return;
+    wrap.innerHTML = customColumns().map(c =>
+        `<div class="form-group"><label class="form-label">${escapeHtml(c.label)}</label>` +
+        `<input type="text" class="form-input extra-field" data-key="${escapeHtml(c.key)}" ` +
+        `value="${escapeHtml((extra || {})[c.key] || '')}"></div>`
+    ).join('');
+}
+function collectExtra(containerId) {
+    const out = {};
+    document.querySelectorAll('#' + containerId + ' .extra-field').forEach(el => {
+        out[el.dataset.key] = el.value;
+    });
+    return out;
+}
+
 function showAddModal() {
+    renderExtraFields('addExtraFields', {});
     document.getElementById('addModal').classList.remove('hidden');
     document.getElementById('addModal').classList.add('flex');
 }
@@ -525,6 +596,7 @@ function showEditModal(id) {
     form.eta.value = item.eta || '';
     form.status.value = item.status || '进行中';
     form.progress.value = item.progress || '';
+    renderExtraFields('editExtraFields', item.extra || {});
     
     document.getElementById('editModal').classList.remove('hidden');
     document.getElementById('editModal').classList.add('flex');
@@ -546,7 +618,8 @@ document.getElementById('addForm').onsubmit = function(e) {
             title: form.title.value,
             dri: form.dri.value,
             eta: form.eta.value,
-            progress: form.progress.value
+            progress: form.progress.value,
+            extra: collectExtra('addExtraFields')
         })
     }).then(r => r.json())
     .then(data => {
@@ -571,7 +644,8 @@ document.getElementById('editForm').onsubmit = function(e) {
             dri: form.dri.value,
             eta: form.eta.value,
             status: form.status.value,
-            progress: form.progress.value
+            progress: form.progress.value,
+            extra: collectExtra('editExtraFields')
         })
     }).then(r => r.json())
     .then(data => {
@@ -581,6 +655,63 @@ document.getElementById('editForm').onsubmit = function(e) {
         } else {
             alert(data.message || '操作失败');
         }
+    })
+    .catch(() => alert('请求失败'));
+};
+
+// ===== 表头管理（改名 / 增加列 / 删除自定义列） =====
+function columnRowHtml(c) {
+    const btn = c.builtin
+        ? '<span style="color:#86868b;font-size:12px;white-space:nowrap;">内置列</span>'
+        : '<button type="button" class="modal-btn modal-btn-cancel" style="white-space:nowrap;" onclick="removeColumnRow(this)">删除</button>';
+    return `<div class="form-group column-row" style="display:flex;gap:8px;align-items:center;"` +
+           ` data-key="${escapeHtml(c.key)}" data-builtin="${c.builtin ? 1 : 0}">` +
+           `<input type="text" class="form-input column-label" value="${escapeHtml(c.label)}" placeholder="列名">` +
+           btn + `</div>`;
+}
+function removeColumnRow(btn) {
+    const row = btn.closest('.column-row');
+    if (row) row.remove();
+}
+function showColumnsModal() {
+    document.getElementById('columnsFields').innerHTML = columns.map(columnRowHtml).join('');
+    document.getElementById('newColumnInput').value = '';
+    document.getElementById('columnsModal').classList.remove('hidden');
+    document.getElementById('columnsModal').classList.add('flex');
+}
+function closeColumnsModal() {
+    document.getElementById('columnsModal').classList.add('hidden');
+    document.getElementById('columnsModal').classList.remove('flex');
+}
+function addColumnField() {
+    const input = document.getElementById('newColumnInput');
+    const label = (input.value || '').trim();
+    if (!label) { alert('请输入新列名'); return; }
+    const key = 'c_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    document.getElementById('columnsFields').insertAdjacentHTML('beforeend',
+        columnRowHtml({ key: key, label: label, builtin: false }));
+    input.value = '';
+    input.focus();
+}
+document.getElementById('columnsForm').onsubmit = function(e) {
+    e.preventDefault();
+    const rows = document.querySelectorAll('#columnsFields .column-row');
+    const cols = [];
+    rows.forEach(function(r) {
+        const label = (r.querySelector('.column-label').value || '').trim();
+        if (!label) return;
+        cols.push({ key: r.dataset.key, label: label, builtin: r.dataset.builtin === '1' });
+    });
+    if (!cols.length) { alert('至少保留一列'); return; }
+    fetch('/api/action-items/columns', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ columns: cols })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) { closeColumnsModal(); loadActionItems(); }
+        else { alert(data.message || '保存失败'); }
     })
     .catch(() => alert('请求失败'));
 };

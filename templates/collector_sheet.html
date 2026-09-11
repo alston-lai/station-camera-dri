@@ -134,8 +134,9 @@
         <div class="page-sub">共 {{ sheet.rows|length }} 条记录 · {{ sheet.headers|length }} 列</div>
     </div>
     <div class="header-actions">
-        <button type="button" onclick="document.getElementById('importFile').click()" class="btn btn-secondary">导入 CSV</button>
+        <button type="button" onclick="document.getElementById('importFile').click()" class="btn btn-secondary">导入 CSV/Excel</button>
         <a href="/api/collector/{{ sheet.id }}/export" class="btn btn-success">导出 CSV</a>
+        <button type="button" onclick="showHeadersModal()" class="btn btn-secondary">修改表头</button>
         <button type="button" onclick="showAddRowModal()" class="btn btn-primary">+ 添加行</button>
         <button type="button" onclick="enterBatchDelete()" id="batchDeleteBtn" class="btn btn-danger">批量删除</button>
         <button type="button" onclick="confirmBatchDelete()" id="confirmDeleteBtn" class="btn btn-danger" style="display:none;">确认删除</button>
@@ -150,7 +151,7 @@
 </div>
 
 <!-- 隐藏的文件输入 -->
-<input type="file" id="importFile" accept=".csv" style="display:none;" onchange="handleImport(this)">
+<input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none;" onchange="handleImport(this)">
 
 <div class="table-wrap">
     <table class="data-table" id="dataTable">
@@ -201,6 +202,27 @@
         </form>
     </div>
 </div>
+
+<!-- 表头管理弹窗 -->
+<div id="headersModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 class="modal-title">修改表头</h3>
+        <form id="headersForm">
+            <div id="headersFields"><!-- 动态生成 --></div>
+            <div class="form-group" style="display:flex;gap:8px;align-items:center;">
+                <input type="text" id="newHeaderInput" class="form-input" placeholder="输入新列名，例如：备注">
+                <button type="button" class="btn btn-cancel" style="white-space:nowrap;" onclick="addHeaderField()">增加一列</button>
+            </div>
+            <p style="color:#86868b;font-size:12px;margin:-4px 0 10px;">
+                可直接修改列名；点行尾「删除」移除列（该列数据会被丢弃）。新增列后原数据该列为空。
+            </p>
+            <div class="form-actions">
+                <button type="button" onclick="closeHeadersModal()" class="btn btn-cancel">取消</button>
+                <button type="submit" class="btn btn-primary">保存表头</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -218,6 +240,62 @@ function autoGrowRowForm() {
 document.addEventListener('input', function (e) {
     if (e.target && e.target.classList && e.target.classList.contains('form-textarea')) autoGrow(e.target);
 });
+
+/* ---------- 表头管理（修改表头 / 增加列） ---------- */
+var SHEET_HEADERS = {{ (sheet.headers or []) | tojson }};
+
+function escAttr(s) {
+    s = String(s == null ? '' : s);
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+function removeHeaderRow(btn) {
+    var row = btn.closest('.header-row');
+    if (row) row.remove();
+}
+function headerRowHtml(value) {
+    return '<div class="form-group header-row" style="display:flex;gap:8px;align-items:center;">' +
+        '<input type="text" class="form-input header-input" value="' + escAttr(value) + '" placeholder="列名">' +
+        '<button type="button" class="btn btn-cancel" style="white-space:nowrap;" onclick="removeHeaderRow(this)">删除</button>' +
+        '</div>';
+}
+function showHeadersModal() {
+    document.getElementById('headersFields').innerHTML = SHEET_HEADERS.map(headerRowHtml).join('');
+    document.getElementById('newHeaderInput').value = '';
+    document.getElementById('headersModal').classList.add('show');
+}
+function closeHeadersModal() {
+    document.getElementById('headersModal').classList.remove('show');
+}
+function addHeaderField() {
+    var input = document.getElementById('newHeaderInput');
+    var name = (input.value || '').trim();
+    if (!name) { alert('请输入新列名'); return; }
+    document.getElementById('headersFields').insertAdjacentHTML('beforeend', headerRowHtml(name));
+    input.value = '';
+    input.focus();
+}
+document.getElementById('headersForm').onsubmit = function (e) {
+    e.preventDefault();
+    var inputs = document.querySelectorAll('#headersFields .header-input');
+    var headers = [];
+    inputs.forEach(function (el) {
+        var v = (el.value || '').trim();
+        if (v) headers.push(v);
+    });
+    if (!headers.length) { alert('表头不能为空'); return; }
+    if (new Set(headers).size !== headers.length) { alert('列名不能重复'); return; }
+    fetch('/api/collector/{{ sheet.id }}/headers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ headers: headers })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.success) { location.reload(); }
+        else { alert(data.message || '保存失败'); }
+    })
+    .catch(function () { alert('请求失败'); });
+};
 
 /* ---------- 添加 / 编辑 行 ---------- */
 function showAddRowModal() {
@@ -554,7 +632,10 @@ function confirmBatchDelete() {
 function handleImport(fileInput) {
     var file = fileInput.files[0];
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.csv')) { alert('只支持 CSV 格式文件'); fileInput.value = ''; return; }
+    var name = file.name.toLowerCase();
+    if (!name.endsWith('.csv') && !name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+        alert('只支持 CSV 或 Excel（.xlsx/.xls）格式文件'); fileInput.value = ''; return;
+    }
     var formData = new FormData();
     formData.append('file', file);
     fetch('/api/collector/{{ sheet.id }}/import', { method: 'POST', body: formData })
