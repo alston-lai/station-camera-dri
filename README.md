@@ -211,6 +211,33 @@ python3 db_admin.py export
 - 服务器要求：Linux + Docker（含 `docker compose` v2 插件）
 - 本机（Apple Silicon / arm64）打出的镜像是 arm64；x86_64 服务器会由 `deploy.sh` 自动改为在服务器构建
 
+### 子路径部署（反向代理，如 `/AL/`）
+
+站点若挂在 `http://hwte.luxsan-ict.com/AL/` 这类子路径下，只需设置环境变量 `URL_PREFIX`：
+
+```yaml
+# docker-compose.yml
+    environment:
+      URL_PREFIX: "/AL"      # 子路径前缀；本地直连留空
+```
+
+设置后应用会自动：
+
+| 项目 | 效果 |
+| --- | --- |
+| `url_for('static', ...)` | `http://hwte.luxsan-ict.com/AL/static/style.css`（`app.js` 同理） |
+| 未登录访问任意页面 | 302 → `http://hwte.luxsan-ict.com/AL/login` |
+| 页面内所有 `fetch('/api/...')` | 自动变成 `/AL/api/...`（页面注入 `window.APP_BASE` + `fetch` 包装） |
+| 所有站内链接 / 跳转 / 导出下载 | 自动带 `/AL` 前缀 |
+
+要点：
+
+- **Nginx 无需改动**：`proxy_pass` 是否剥离子路径都能正常工作（`/AL/...` 与 `/...` 两种转发方式都兼容）。
+- 代理若转发 `X-Forwarded-Prefix: /AL`，即使不设 `URL_PREFIX` 也会自动生效（`URL_PREFIX` 优先）。
+- `/AL`（无尾斜杠）会自动规范化到 `/AL/`。
+- 容器健康检查走容器内 `/login`（不带前缀），不受影响。
+- 本地 `start.command`（`http://localhost:5001/`）不设该变量，行为与之前完全一致。
+
 提供容器化运行所需文件：`Dockerfile`、`docker-compose.yml`、`.dockerignore`、`requirements.txt`。
 
 ### 镜像内端口约定

@@ -227,17 +227,26 @@ if [ ! -f data/.secret_key ] && [ -f data-seed/.secret_key ]; then
 fi
 chmod 700 data 2>/dev/null || true
 
-HOST_ARCH="$(docker info --format '{{.Architecture}}' 2>/dev/null || echo unknown)"
+HOST_ARCH_RAW="$(docker info --format '{{.Architecture}}' 2>/dev/null || echo unknown)"
+# 统一架构写法：aarch64→arm64、x86_64→amd64（不同命令返回的写法不一致，必须归一化）
+norm_arch() {
+    case "$1" in
+        aarch64|arm64) echo "arm64" ;;
+        x86_64|amd64|x86-64) echo "amd64" ;;
+        *) echo "$1" ;;
+    esac
+}
+HOST_ARCH="$(norm_arch "$HOST_ARCH_RAW")"
 USE_IMAGE=0
 if [ -f dri-image.tar.gz ]; then
-    CUR_ARCH="$(docker image inspect station-camera-dri:latest --format '{{.Architecture}}' 2>/dev/null || true)"
+    CUR_ARCH="$(norm_arch "$(docker image inspect station-camera-dri:latest --format '{{.Architecture}}' 2>/dev/null || true)")"
     if [ -n "$CUR_ARCH" ] && [ "$CUR_ARCH" = "$HOST_ARCH" ]; then
         echo "==> 本机已有架构匹配的镜像（$CUR_ARCH），跳过加载"
         USE_IMAGE=1
     else
         echo "==> 加载镜像包 dri-image.tar.gz ..."
         if gunzip -c dri-image.tar.gz | docker load; then
-            IMG_ARCH="$(docker image inspect station-camera-dri:latest --format '{{.Architecture}}' 2>/dev/null || echo unknown)"
+            IMG_ARCH="$(norm_arch "$(docker image inspect station-camera-dri:latest --format '{{.Architecture}}' 2>/dev/null || echo unknown)")"
             echo "    镜像架构: $IMG_ARCH  /  本机架构: $HOST_ARCH"
             if [ "$IMG_ARCH" = "$HOST_ARCH" ]; then
                 USE_IMAGE=1
@@ -343,6 +352,7 @@ cat >> "$STAGE_DIR/DEPLOY.md" <<'EOF'
 
 | 变量 | 建议值 | 说明 |
 | --- | --- | --- |
+| `URL_PREFIX` | `"/AL"` | **反向代理子路径前缀**。站点部署在 `http://hwte.luxsan-ict.com/AL/` 下时必须为 `/AL`，否则页面里的链接/静态资源/接口会 404（本地直连时留空） |
 | `TZ` | `Asia/Shanghai` | 时区，影响数据库时间戳（不设置会差 8 小时） |
 | `SESSION_COOKIE_SECURE` | `"false"` | 用 http://IP:8080 访问时必须为 false，否则登录不上；配好 HTTPS 再改 true |
 | `ADMIN_PASSWORD` | 自行修改 | 用户管理入口密码 |
@@ -368,6 +378,7 @@ cat >> "$STAGE_DIR/DEPLOY.md" <<'EOF'
 
 | 现象 | 原因与处理 |
 | --- | --- |
+| 页面样式丢失 / 点链接 404 / 登录跳转丢了 `/AL` | `docker-compose.yml` 里的 `URL_PREFIX` 与反向代理子路径不一致。部署在 `/AL/` 下必须设 `URL_PREFIX: "/AL"`（改完 `docker compose up -d` 重建容器） |
 | `exec format error` / 容器起不来 | 镜像架构与服务器不一致（例如在 Apple Silicon 上打包）。改用 `docker compose up -d --build` 在服务器构建 |
 | 登录后仍跳回登录页 | `SESSION_COOKIE_SECURE` 为 true 但用 http 访问 → 改成 `"false"` |
 | 8080 端口被占用 | 修改 `docker-compose.yml` 的 `ports`（如 `"9090:8000"`） |

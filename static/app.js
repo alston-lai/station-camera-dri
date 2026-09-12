@@ -1,5 +1,29 @@
 // Station & Camera DRI Management - Common JavaScript Functions
 
+// ===== 子路径（反向代理）支持 =====
+// 站点部署在 http://host/AL/ 这类子路径下时，服务端会在页面里注入 window.APP_BASE = "/AL"。
+// appUrl() 用于手动拼接带前缀的地址；下面的 fetch 包装让所有 fetch('/api/...') 自动带前缀。
+window.appUrl = function (path) {
+    var base = window.APP_BASE || '';
+    if (!path) return base + '/';
+    return base + (path.charAt(0) === '/' ? path : '/' + path);
+};
+
+(function () {
+    var base = window.APP_BASE;
+    var originalFetch = window.fetch;
+    if (!base || typeof originalFetch !== 'function') return;
+    window.fetch = function (input, init) {
+        if (typeof input === 'string' && input.charAt(0) === '/' && input.indexOf('//') !== 0) {
+            input = base + input;
+        } else if (input && typeof input === 'object' && typeof input.url === 'string'
+                   && input.url.charAt(0) === '/' && input.url.indexOf('//') !== 0) {
+            input = new Request(base + input.url, input);
+        }
+        return originalFetch.call(this, input, init);
+    };
+})();
+
 // API request helper
 async function apiRequest(url, options = {}) {
     try {

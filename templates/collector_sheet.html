@@ -129,7 +129,7 @@
 
 <div class="page-header">
     <div class="head-left">
-        <a href="/collector" class="back-link">← 返回列表</a>
+        <a href="{{ url_for('collector') }}" class="back-link">← 返回列表</a>
         <h1 class="page-title">{{ sheet.name }}</h1>
         <div class="page-sub">共 {{ sheet.rows|length }} 条记录 · {{ sheet.headers|length }} 列</div>
     </div>
@@ -137,7 +137,7 @@
         {% if can_edit %}
         <button type="button" onclick="document.getElementById('importFile').click()" class="btn btn-secondary">导入 CSV/Excel</button>
         {% endif %}
-        <a href="/api/collector/{{ sheet.id }}/export" class="btn btn-success">导出 CSV</a>
+        <a href="{{ url_for('api_collector_export', sheet_id=sheet.id) }}" class="btn btn-success">导出 CSV</a>
         {% if can_edit %}
         <button type="button" onclick="showHeadersModal()" class="btn btn-secondary">修改表头</button>
         <button type="button" onclick="showAddRowModal()" class="btn btn-primary">+ 添加行</button>

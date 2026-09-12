@@ -1,7 +1,7 @@
 # version.py
-__version__ = "2.2.3"
+__version__ = "3.2.3"
 __version_info__ = {
-    "major": 2,
+    "major": 3,
     "minor": 2,
     "patch": 3,
     "release_date": "2026-09-10",

@@ -670,7 +670,7 @@ function canViewPersonnelFile(dept) {
 
 // 打开员工档案页面（新标签页）
 function openPersonnelFile(employee_id) {
-    window.open('/personnel-file/' + encodeURIComponent(employee_id), '_blank');
+    window.open(appUrl('/personnel-file/' + encodeURIComponent(employee_id)), '_blank');
 }
 
 
@@ -819,7 +819,7 @@ function goDeptAnalysis(dept) {
         alert('您没有权限查看部门分析，请联系主管开通「部门信息可编辑」权限');
         return;
     }
-    location.href = '/department/analysis/' + encodeURIComponent(dept);
+    location.href = appUrl('/department/analysis/' + encodeURIComponent(dept));
 }
 
 // 初始加载汇总数据
@@ -1327,7 +1327,7 @@ function deleteRecordRow(id) {
 
 function exportDepartment() {
     const dept = document.getElementById('deptSelect').value || '全体';
-    window.location.href = '/api/department/export?department=' + encodeURIComponent(dept);
+    window.location.href = appUrl('/api/department/export?department=' + encodeURIComponent(dept));
 }
 
 function importDepartment(input) {

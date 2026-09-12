@@ -99,6 +99,38 @@ app = Flask(__name__,
             static_folder=STATIC_DIR,
             static_url_path='/static')
 
+
+# ===== 反向代理子路径（URL 前缀）支持 =====
+# 站点部署在 http://hwte.luxsan-ict.com/AL/ 这类子路径下时，
+# 通过 URL_PREFIX=/AL 让 url_for / redirect 生成带前缀的 URL。
+class UrlPrefixMiddleware:
+    """把反向代理的子路径前缀变成 WSGI 的 SCRIPT_NAME。
+
+    - 请求已带前缀（/AL/login）→ 剥掉前缀后交给路由，并设 SCRIPT_NAME=/AL
+    - 请求不带前缀（代理已剥离 / 本地直连 / 容器健康检查）→ 只设 SCRIPT_NAME，路由照常匹配
+    - /AL（无尾斜杠）→ 规范化为 /AL/，避免 404
+    前缀来源：环境变量 URL_PREFIX 优先，其次代理头 X-Forwarded-Prefix，都没有则不做任何处理。
+    """
+
+    def __init__(self, wsgi_app, prefix: str = ''):
+        self.wsgi_app = wsgi_app
+        self.prefix = (prefix or '').strip().rstrip('/')
+
+    def __call__(self, environ, start_response):
+        prefix = self.prefix or (environ.get('HTTP_X_FORWARDED_PREFIX') or '').strip().rstrip('/')
+        if prefix:
+            path = environ.get('PATH_INFO', '') or ''
+            if path == prefix:
+                path = '/'
+            elif path.startswith(prefix + '/'):
+                path = path[len(prefix):]
+            environ['SCRIPT_NAME'] = prefix
+            environ['PATH_INFO'] = path or '/'
+        return self.wsgi_app(environ, start_response)
+
+
+app.wsgi_app = UrlPrefixMiddleware(app.wsgi_app, os.environ.get('URL_PREFIX', ''))
+
 # —— 会话与安全相关配置 ——
 app.config['SECRET_KEY'] = _load_or_create_secret_key()
 app.config['DEBUG'] = APP_DEBUG
@@ -277,7 +309,8 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user' not in session:
-            return redirect('/login')
+            # 用 url_for 生成，自动带上子路径前缀（如 /AL/login）
+            return redirect(url_for('login_page'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -293,7 +326,7 @@ def get_current_user():
 def login_page():
     """登录页面"""
     if 'user' in session:
-        return redirect('/')
+        return redirect(url_for('index'))
     return render_template('login.html')
 
 

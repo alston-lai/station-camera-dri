@@ -44,7 +44,7 @@
 
 <div class="pf-header">
     <div>
-        <a href="/department" class="pf-back">← 返回部门信息</a>
+        <a href="{{ url_for('department') }}" class="pf-back">← 返回部门信息</a>
         <h1 class="pf-title">{{ record.name or '员工' }}<span class="pf-dept">{{ record.department or '-' }}</span></h1>
         <p class="pf-sub">员工人事档案</p>
     </div>

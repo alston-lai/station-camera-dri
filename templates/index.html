@@ -19,7 +19,7 @@
 
 <!-- 导航模块 -->
 <div class="nav-modules">
-    <a href="/department" class="nav-module-card nav-module-blue">
+    <a href="{{ url_for('department') }}" class="nav-module-card nav-module-blue">
         <div class="nav-module-icon">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -32,7 +32,7 @@
         <span class="nav-module-arrow">进入 →</span>
     </a>
     
-    <a href="/action-items" class="nav-module-card nav-module-green">
+    <a href="{{ url_for('action_items') }}" class="nav-module-card nav-module-green">
         <div class="nav-module-icon">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
@@ -45,7 +45,7 @@
         <span class="nav-module-arrow">进入 →</span>
     </a>
     
-    <a href="/info-list" class="nav-module-card nav-module-purple">
+    <a href="{{ url_for('info_list') }}" class="nav-module-card nav-module-purple">
         <div class="nav-module-icon">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -58,7 +58,7 @@
         <span class="nav-module-arrow">进入 →</span>
     </a>
     
-    <a href="/collector" class="nav-module-card nav-module-orange">
+    <a href="{{ url_for('collector') }}" class="nav-module-card nav-module-orange">
         <div class="nav-module-icon">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -72,7 +72,7 @@
     </a>
 
     {% if session.get('user', {}).get('can_edit_department') %}
-    <a href="/kpi" class="nav-module-card nav-module-red">
+    <a href="{{ url_for('kpi_manage') }}" class="nav-module-card nav-module-red">
         <div class="nav-module-icon">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
@@ -87,7 +87,7 @@
     {% endif %}
 
     {% if session.get('user', {}).get('employee_id') == '12214253' %}
-    <a href="/admin/users" class="nav-module-card nav-module-gray">
+    <a href="{{ url_for('admin_users') }}" class="nav-module-card nav-module-gray">
         <div class="nav-module-icon">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
@@ -106,7 +106,7 @@
 <div class="recent-section">
     <div class="section-header">
         <h2 class="section-title">最近 Action Items</h2>
-        <a href="/action-items" class="view-all-link">查看全部 →</a>
+        <a href="{{ url_for('action_items') }}" class="view-all-link">查看全部 →</a>
     </div>
     <div class="recent-list">
         <div id="recentActions" class="recent-empty">加载中...</div>
@@ -117,7 +117,7 @@
 <div class="recent-section">
     <div class="section-header">
         <h2 class="section-title">最近信息表</h2>
-        <a href="/info-list" class="view-all-link">查看全部 →</a>
+        <a href="{{ url_for('info_list') }}" class="view-all-link">查看全部 →</a>
     </div>
     <div class="recent-list">
         <div id="recentInfo" class="recent-empty">加载中...</div>
@@ -128,7 +128,7 @@
 <div class="recent-section">
     <div class="section-header">
         <h2 class="section-title">最近收集表格</h2>
-        <a href="/collector" class="view-all-link">查看全部 →</a>
+        <a href="{{ url_for('collector') }}" class="view-all-link">查看全部 →</a>
     </div>
     <div class="recent-list">
         <div id="recentSheets" class="recent-empty">加载中...</div>
@@ -447,7 +447,7 @@ Promise.all([
             var dotClass = item.status === '已完成' ? 'recent-dot-green' :
                           item.status === '已取消' ? 'recent-dot-gray' : 
                           (isOverdue ? 'recent-dot-red' : 'recent-dot-blue');
-            return '<a href="/action-items" class="recent-item">' +
+            return '<a href="' + appUrl('/action-items') + '" class="recent-item">' +
                 '<div class="recent-left">' +
                     '<div class="recent-dot ' + dotClass + '"></div>' +
                     '<div class="recent-main">' +
@@ -471,7 +471,7 @@ Promise.all([
     } else {
         infoContainer.innerHTML = recentInfo.map(function(item) {
             var rowCount = item.rows ? item.rows.length : 0;
-            return '<a href="/info-list" class="recent-item">' +
+            return '<a href="' + appUrl('/info-list') + '" class="recent-item">' +
                 '<div class="recent-left">' +
                     '<div class="recent-dot recent-dot-purple"></div>' +
                     '<div class="recent-main">' +
@@ -494,7 +494,7 @@ Promise.all([
     } else {
         sheetsContainer.innerHTML = recentSheets.map(function(item) {
             var dateStr = item.created_at ? item.created_at.split('T')[0] : '未知';
-            return '<a href="/collector/' + item.id + '" class="recent-item">' +
+            return '<a href="' + appUrl('/collector/' + item.id) + '" class="recent-item">' +
                 '<div class="recent-left">' +
                     '<div class="recent-dot recent-dot-orange"></div>' +
                     '<div class="recent-main">' +

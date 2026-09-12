@@ -55,7 +55,7 @@
 
 <div class="da-header">
     <div>
-        <a href="/department" class="da-back">← 返回部门信息</a>
+        <a href="{{ url_for('department') }}" class="da-back">← 返回部门信息</a>
         <h1 class="da-title">部门分析<span class="da-dept">{{ dept }}</span></h1>
         <p class="da-sub">在职人员 {{ total }} 人 · 级别分布 / 人员占比 / 奖惩 / 专利 / 研发立项 / 激励专案</p>
     </div>

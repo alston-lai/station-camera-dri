@@ -71,7 +71,7 @@ document.getElementById('loginForm').onsubmit = function(e) {
     .then(function(data) {
         if (data.success) {
             sessionStorage.setItem('user', JSON.stringify(data.user));
-            window.location.href = '/';
+            window.location.href = appUrl('/');
         } else {
             var errorMsg = document.getElementById('errorMsg');
             errorMsg.textContent = data.message || '登录失败，请检查工号、姓名和密码';

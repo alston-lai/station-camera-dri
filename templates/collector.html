@@ -340,7 +340,7 @@ document.getElementById('createForm').onsubmit = function(e) {
 };
 
 function exportSheet(id) {
-    window.location.href = '/api/collector/' + id + '/export';
+    window.location.href = appUrl('/api/collector/' + id + '/export');
 }
 
 function deleteSheet(id) {

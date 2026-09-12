@@ -10,6 +10,10 @@ services:
     environment:
       # 生产保持为空；如需调试模板热重载可设 true
       FLASK_DEBUG: ""
+      # 反向代理子路径前缀：站点部署在 http://hwte.luxsan-ict.com/AL/ 时为 "/AL"；
+      # 本地直连（start.command）留空即可。设置后 url_for/redirect/静态资源都会自动带该前缀，
+      # 前端 fetch 也会自动加前缀（通过页面注入的 window.APP_BASE）。
+      URL_PREFIX: "/AL"
       # 容器时区：影响写入数据库的时间戳（历史记录、创建时间等）。
       # 不设置时容器为 UTC，会比本地慢 8 小时。
       TZ: "Asia/Shanghai"

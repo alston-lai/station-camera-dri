@@ -20,10 +20,12 @@
     </style>
 </head>
 <body>
+    <!-- 子路径前缀（反向代理部署在 /AL/ 时由服务端注入，如 "/AL"；本地为 ""） -->
+    <script>window.APP_BASE = "{{ request.script_root }}";</script>
     <!-- Apple Style Navigation -->
     <nav class="apple-nav">
         <div class="nav-container">
-            <a href="/" id="navLogo" class="nav-logo">
+            <a href="{{ url_for('index') }}" id="navLogo" class="nav-logo">
                 <svg class="logo-icon" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
@@ -31,13 +33,13 @@
             </a>
             
             <div class="nav-links">
-                <a href="/department" class="nav-link">部门信息</a>
-                <a href="/action-items" class="nav-link">Action Items</a>
-                <a href="/info-list" class="nav-link">信息列表</a>
-                <a href="/collector" class="nav-link">数据收集</a>
+                <a href="{{ url_for('department') }}" class="nav-link">部门信息</a>
+                <a href="{{ url_for('action_items') }}" class="nav-link">Action Items</a>
+                <a href="{{ url_for('info_list') }}" class="nav-link">信息列表</a>
+                <a href="{{ url_for('collector') }}" class="nav-link">数据收集</a>
                 {% if session.get('user', {}).get('can_edit_department') %}
-                <a href="/kpi" class="nav-link">KPI 管理</a>
-                <a href="/history" class="nav-link">历史记录</a>
+                <a href="{{ url_for('kpi_manage') }}" class="nav-link">KPI 管理</a>
+                <a href="{{ url_for('history') }}" class="nav-link">历史记录</a>
                 {% endif %}
             </div>
             
@@ -46,7 +48,7 @@
                     <span class="user-avatar" id="userAvatar"></span>
                     <span id="userName"></span>
                 </span>
-                <a href="/change-password" id="changePwdBtn" class="nav-change-pwd hidden">
+                <a href="{{ url_for('change_password_page') }}" id="changePwdBtn" class="nav-change-pwd hidden">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
                     </svg>
@@ -58,7 +60,7 @@
                     </svg>
                     退出
                 </button>
-                <a href="/login" id="loginLink" class="nav-login">
+                <a href="{{ url_for('login_page') }}" id="loginLink" class="nav-login">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                     </svg>
@@ -95,19 +97,19 @@
                         document.getElementById('logoutBtn').classList.add('flex');
                         document.getElementById('loginLink').classList.add('hidden');
                         // 已登录：Logo 链接指向首页
-                        document.getElementById('navLogo').href = '/';
+                        document.getElementById('navLogo').href = appUrl('/');
                     } else {
                         document.getElementById('loginLink').classList.remove('hidden');
                         document.getElementById('loginLink').classList.add('flex');
                         // 未登录：Logo 链接指向登录页
-                        document.getElementById('navLogo').href = '/login';
+                        document.getElementById('navLogo').href = appUrl('/login');
                     }
                 });
         }
         
         function logout() {
             fetch('/api/logout', {method: 'POST'})
-                .then(() => window.location.href = '/login');
+                .then(() => window.location.href = appUrl('/login'));
         }
 
         // 统一的接口错误提示：接口返回 {success:false, message:...} 时弹出提示。
@@ -131,6 +133,19 @@
                         : (fallback || '请求失败'));
                 });
         }
+
+        // 兜底：给未带子路径前缀的站内链接自动补上 APP_BASE（防止漏改/动态生成的链接 404）。
+        // 只在需要时改写，带前缀或外链不动。
+        document.addEventListener('click', function (e) {
+            if (!window.APP_BASE) return;
+            var el = e.target;
+            while (el && el.tagName !== 'A') el = el.parentElement;
+            if (!el) return;
+            var href = el.getAttribute('href') || '';
+            if (href.charAt(0) !== '/' || href.indexOf('//') === 0) return;
+            if (href === window.APP_BASE || href.indexOf(window.APP_BASE + '/') === 0) return;
+            el.setAttribute('href', window.APP_BASE + href);
+        }, true);
 
         checkLogin();
     </script>

@@ -66,7 +66,7 @@ table.au-table { width:100%; border-collapse:collapse; }
     <div class="au-actions">
         <button class="au-btn au-primary" onclick="openUserModal()">＋ 新增用户</button>
         <button class="au-btn au-plain" onclick="lockAdmin()">锁定并返回</button>
-        <a href="/" class="au-btn au-plain" style="text-decoration:none;">返回首页</a>
+        <a href="{{ url_for('index') }}" class="au-btn au-plain" style="text-decoration:none;">返回首页</a>
     </div>
 </div>
 
@@ -174,7 +174,7 @@ function showGate(msg) {
 
 // 取消：直接回到主页面
 function cancelAdminGate() {
-    location.href = '/';
+    location.href = appUrl('/');
 }
 
 function hideGate() {
@@ -345,8 +345,8 @@ function deleteUser(employee_id, name) {
 function lockAdmin() {
     // 通知服务器销毁 token，然后回到首页（token 也随之从页面内存中消失）
     fetch('/api/admin/lock', {method: 'POST', headers: authHeaders()})
-        .then(function () { location.href = '/'; })
-        .catch(function () { location.href = '/'; });
+        .then(function () { location.href = appUrl('/'); })
+        .catch(function () { location.href = appUrl('/'); });
 }
 
 // 进入页面时先显示密码闸门（不自动加载数据）
