@@ -31,6 +31,7 @@ from data_manager import (
     get_personnel_file, update_personnel_file,
     get_personnel_files_by_dept, find_collector_sheet_by_name, classify_reward_punishment,
     get_all_users, get_user, upsert_user, delete_user,
+    verify_user_password, set_user_password, DEFAULT_PASSWORD,
     read_tabular_rows,
     get_all_action_items, add_action_item, update_action_item, delete_action_item,
     get_action_columns, set_action_columns,
@@ -303,9 +304,12 @@ def api_login():
     data = request.json or {}
     employee_id = str(data.get('employee_id', '')).strip()
     name = str(data.get('name', '')).strip()
+    password = str(data.get('password', ''))
 
     if not employee_id or not name:
         return jsonify({'success': False, 'message': '请填写工号和姓名'})
+    if not password:
+        return jsonify({'success': False, 'message': '请输入密码'})
 
     # 限流 key：同一 IP + 同一工号 分别计数
     if _too_many_login_attempts(f'ip:{ip}') or _too_many_login_attempts(f'id:{employee_id}'):
@@ -320,6 +324,12 @@ def api_login():
             'success': False,
             'message': '无权限访问此页面，请联系管理员申请权限'
         })
+
+    # 工号 + 密码 必须完全匹配
+    if not verify_user_password(employee_id, password):
+        _record_login_failure(f'ip:{ip}')
+        _record_login_failure(f'id:{employee_id}')
+        return jsonify({'success': False, 'message': '工号或密码不正确'})
 
     # 获取用户权限配置
     user = get_user_permissions(employee_id, name)
@@ -470,6 +480,26 @@ def api_admin_user_delete(employee_id):
     return jsonify({'success': True})
 
 
+@app.route('/api/admin/users/<employee_id>/reset-password', methods=['POST'])
+def api_admin_user_reset_password(employee_id):
+    """管理员把用户密码重置为初始密码（用户忘记密码时使用）"""
+    if not _admin_request_ok():
+        return jsonify({'success': False, 'message': '未通过管理员验证'}), 403
+
+    user = get_user(employee_id)
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+    if not set_user_password(employee_id, DEFAULT_PASSWORD):
+        return jsonify({'success': False, 'message': '重置失败，请重试'}), 500
+
+    admin = session.get('user', {})
+    add_history(f"用户管理: 重置密码为初始密码 {user.get('name', '')}({employee_id})",
+                admin.get('name', 'admin'), admin.get('employee_id', ''), get_client_ip())
+    return jsonify({'success': True,
+                    'message': '密码已重置为初始密码',
+                    'default_password': DEFAULT_PASSWORD})
+
+
 # ===== 首页 =====
 
 @app.route('/')
@@ -477,6 +507,41 @@ def api_admin_user_delete(employee_id):
 def index():
     """首页 - 导航"""
     return render_template('index.html')
+
+
+@app.route('/change-password')
+@login_required
+def change_password_page():
+    """修改密码页面（工号 + 新密码）"""
+    user = get_current_user()
+    return render_template('change_password.html', user=user)
+
+
+@app.route('/api/change-password', methods=['POST'])
+@api_login_required
+def api_change_password():
+    """修改本人登录密码；工号必须与当前登录用户一致"""
+    user = get_current_user()
+    data = request.json or {}
+    employee_id = str(data.get('employee_id', '')).strip()
+    new_password = str(data.get('new_password', ''))
+
+    if not employee_id:
+        return jsonify({'success': False, 'message': '请输入工号'}), 400
+    if not new_password:
+        return jsonify({'success': False, 'message': '请输入新密码'}), 400
+    if len(new_password) < 4:
+        return jsonify({'success': False, 'message': '新密码至少 4 位'}), 400
+    if employee_id != str(user.get('employee_id', '')).strip():
+        return jsonify({'success': False, 'message': '只能修改本人密码（工号需与当前登录账号一致）'}), 403
+    if not get_user(employee_id):
+        return jsonify({'success': False, 'message': '该工号不存在'}), 404
+    if not set_user_password(employee_id, new_password):
+        return jsonify({'success': False, 'message': '保存失败，请重试'}), 500
+
+    add_history(f'修改密码: {user.get("name", "")}({employee_id})',
+                user.get('name', employee_id), employee_id, get_client_ip())
+    return jsonify({'success': True, 'message': '密码修改成功'})
 
 
 # ===== 部门人员信息 =====

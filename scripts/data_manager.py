@@ -5,9 +5,12 @@
 旧的 data/*.json 仅用于一次性迁移（已完成），日常运行不再读取。
 """
 import csv
+import hashlib
+import hmac
 import io
 import json
 import os
+import secrets
 import sqlite3
 import threading
 from datetime import datetime
@@ -149,6 +152,7 @@ CREATE TABLE IF NOT EXISTS users (
     can_edit_action_items   INTEGER DEFAULT 0,
     can_edit_info_list      INTEGER DEFAULT 0,
     can_edit_personnel_file TEXT DEFAULT 'NO',
+    password                TEXT DEFAULT '',
     created_at              TEXT DEFAULT ''
 );
 
@@ -272,13 +276,14 @@ def _migrate_users_from_json():
                     c.execute(
                         'INSERT OR IGNORE INTO users'
                         '(employee_id,name,can_edit_department,can_edit_action_items,'
-                        'can_edit_info_list,can_edit_personnel_file,created_at)'
-                        ' VALUES(?,?,?,?,?,?,?)',
+                        'can_edit_info_list,can_edit_personnel_file,password,created_at)'
+                        ' VALUES(?,?,?,?,?,?,?,?)',
                         (emp, u.get('name', ''),
                          1 if u.get('can_edit_department') else 0,
                          1 if u.get('can_edit_action_items') else 0,
                          1 if u.get('can_edit_info_list') else 0,
-                         str(u.get('can_edit_personnel_file', 'NO')).strip(), _now_minute()))
+                         str(u.get('can_edit_personnel_file', 'NO')).strip(),
+                         hash_password(u.get('password') or DEFAULT_PASSWORD), _now_minute()))
                 c.commit()
             except Exception:
                 c.rollback()
@@ -286,10 +291,74 @@ def _migrate_users_from_json():
 
 
 # ===== 用户 CRUD =====
+# 新用户的初始密码（需求：初始密码为 test）
+DEFAULT_PASSWORD = 'test'
+_PBKDF2_ITERATIONS = 100_000
+
+
+def hash_password(password: str) -> str:
+    """PBKDF2-SHA256 加盐哈希。格式：pbkdf2_sha256$迭代次数$盐(hex)$哈希(hex)"""
+    salt = secrets.token_hex(16)
+    dk = hashlib.pbkdf2_hmac('sha256', str(password).encode('utf-8'),
+                             bytes.fromhex(salt), _PBKDF2_ITERATIONS)
+    return 'pbkdf2_sha256$%d$%s$%s' % (_PBKDF2_ITERATIONS, salt, dk.hex())
+
+
+def verify_password_hash(password: str, stored: str) -> bool:
+    """校验密码；未设置密码时按初始密码 test 处理（兼容历史数据）"""
+    stored = str(stored or '')
+    if not stored:
+        return hmac.compare_digest(str(password), DEFAULT_PASSWORD)
+    if stored.startswith('pbkdf2_sha256$'):
+        try:
+            _, iterations, salt, want = stored.split('$', 3)
+            dk = hashlib.pbkdf2_hmac('sha256', str(password).encode('utf-8'),
+                                     bytes.fromhex(salt), int(iterations))
+        except Exception:
+            return False
+        return hmac.compare_digest(dk.hex(), want)
+    # 兼容可能存在的明文密码
+    return hmac.compare_digest(stored, str(password))
+
+
+def verify_user_password(employee_id: str, password: str) -> bool:
+    """工号 + 密码是否匹配"""
+    u = get_user(employee_id)
+    if not u:
+        return False
+    return verify_password_hash(password, u.get('password'))
+
+
+def set_user_password(employee_id: str, password: str) -> bool:
+    """设置/修改用户密码（存哈希）"""
+    c = _conn()
+    cur = c.execute('UPDATE users SET password=? WHERE employee_id=?',
+                    (hash_password(password), str(employee_id).strip()))
+    c.commit()
+    return cur.rowcount > 0
+
+
+def ensure_default_passwords() -> int:
+    """把还没有密码的用户密码设为初始密码 test；返回处理条数（幂等）"""
+    c = _conn()
+    rows = c.execute("SELECT employee_id FROM users"
+                     " WHERE trim(coalesce(password,''))=''").fetchall()
+    for r in rows:
+        c.execute('UPDATE users SET password=? WHERE employee_id=?',
+                  (hash_password(DEFAULT_PASSWORD), r['employee_id']))
+    c.commit()
+    return len(rows)
+
+
 def get_all_users() -> List[Dict]:
     c = _conn()
     rows = c.execute('SELECT * FROM users ORDER BY employee_id').fetchall()
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        u = dict(r)
+        u.pop('password', None)   # 不把密码哈希暴露给前端
+        out.append(u)
+    return out
 
 
 def get_user(employee_id: str) -> Optional[Dict]:
@@ -316,12 +385,13 @@ def upsert_user(record: Dict) -> bool:
     else:
         c.execute(
             'INSERT INTO users(employee_id,name,can_edit_department,can_edit_action_items,'
-            'can_edit_info_list,can_edit_personnel_file,created_at) VALUES(?,?,?,?,?,?,?)',
+            'can_edit_info_list,can_edit_personnel_file,password,created_at) VALUES(?,?,?,?,?,?,?,?)',
             (emp, record.get('name', ''),
              1 if record.get('can_edit_department') else 0,
              1 if record.get('can_edit_action_items') else 0,
              1 if record.get('can_edit_info_list') else 0,
-             str(record.get('can_edit_personnel_file', 'NO')).strip(), _now_minute()))
+             str(record.get('can_edit_personnel_file', 'NO')).strip(),
+             hash_password(record.get('password') or DEFAULT_PASSWORD), _now_minute()))
     c.commit()
     return True
 
@@ -1380,7 +1450,12 @@ def _ensure_schema_columns():
     cols2 = [r['name'] for r in c.execute('PRAGMA table_info(collector_sheets)').fetchall()]
     if 'locked' not in cols2:
         c.execute('ALTER TABLE collector_sheets ADD COLUMN locked INTEGER DEFAULT 0')
+    # 用户登录密码（初始密码 test）
+    cols3 = [r['name'] for r in c.execute('PRAGMA table_info(users)').fetchall()]
+    if 'password' not in cols3:
+        c.execute("ALTER TABLE users ADD COLUMN password TEXT DEFAULT ''")
     c.commit()
+    ensure_default_passwords()
 
 
 def init_all_data() -> None:
@@ -1393,6 +1468,7 @@ def init_all_data() -> None:
     _migrate_all()
     _migrate_users_from_json()       # users.json -> users 表（一次性）
     bootstrap_admin_if_empty()       # 全新部署可用环境变量创建初始管理员
+    ensure_default_passwords()       # 未设置密码的用户给初始密码 test
     import_personnel_files_from_excel_once()  # 档案信息.xlsx -> personnel_files（一次性）
 
 

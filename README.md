@@ -2,6 +2,18 @@
 
 部门信息管理与数据收集平台
 
+### 0. 登录与密码
+
+- 登录需 **工号 + 姓名 + 密码**，其中**工号与密码必须完全匹配**（工号还需在 `users` 白名单中）。
+- **初始密码为 `test`**：所有用户首次可用 `test` 登录；新用户由管理员在「用户管理」中新增时也自动获得初始密码 `test`。
+- 密码以 **PBKDF2-SHA256 加盐哈希**存于 `users.password`（不存明文，接口也不会返回哈希）。
+- 登录后导航栏用户名右侧有 **修改密码** 按钮，进入 `/change-password`：
+  填写「工号 + 新密码（+ 确认新密码）」，可 **取消** 返回首页；只能修改本人密码（工号须与当前登录账号一致），提交成功后立即写入数据库。
+- **忘记密码**：管理员在「用户管理」页可对任意用户点 **重置密码**，一键恢复为初始密码 `test`
+  （接口 `POST /api/admin/users/<工号>/reset-password`，需管理员令牌；操作会记入历史记录）。
+  重置后请告知本人，并建议其登录后立即自行修改。
+- 登录失败限流：同一 IP / 同一工号 5 分钟内尝试次数过多会被暂时拒绝。
+
 ## 功能模块
 
 ### 1. 部门信息
@@ -61,33 +73,87 @@
 
 ## 安装和运行
 
-### 1. 安装依赖
+> 工作模式：**本地用 `start.command` 开发/调试**；调试完成后用 `package_for_docker.command`
+> 打成一个 Docker 部署包（`forDocker.tar.gz`），上传到服务器用 Docker 运行。详见
+> [本地运行](#本地运行startcommand) 与 [Docker 部署](#docker-部署服务器) 两节。
+
+### 本地运行（start.command）
+
+#### 1. 安装依赖（首次）
 ```bash
 cd station-camera-dri
-pip install -r requirements.txt
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
 ```
 
-### 2. 运行服务
+#### 2. 启动服务
+- 推荐：双击项目根目录的 **`start.command`**
+  （自动选择 Python 环境：优先项目内 `venv`，其次 `/Users/alston/Documents/Cline/Workflows/venv`，最后系统 `python3`）
+- 或在终端执行：
+  ```bash
+  ./start.command
+  ```
+- 重启（结束 5001 端口旧进程后重新启动）：双击 **`restart.command`**
+
+#### 3. 访问
+浏览器打开: http://localhost:5001
+
+- 数据库文件：`data/app.db`（本地运行时直接读写该文件）
+- 停止服务：在启动服务的终端窗口按 `Ctrl+C`
+
+### 打包给服务器（package_for_docker.command）
+
+本地调试完成后，双击 **`package_for_docker.command`**（或终端 `./package_for_docker.command`），
+它会自动完成：**构建最新镜像 → 收集 Docker 运行所需文件 → 打包成一个文件**：
+
+```
+dist/forDocker.tar.gz      ← 上传这个文件到服务器即可（约 50MB）
+dist/forDocker/            ← 未压缩的同内容目录（便于检查）
+```
+
+包内包含：
+
+| 内容 | 说明 |
+| --- | --- |
+| `dri-image.tar.gz` | 本地构建好的镜像（`docker load` 离线加载） |
+| `docker-compose.yml` / `Dockerfile` / `.dockerignore` / `requirements.txt` | **与仓库完全一致**，未做任何改动 |
+| `scripts/ templates/ static/` | 源码与静态资源（服务器可自行 `docker compose up -d --build`） |
+| `data-seed/` | 数据库快照 `app.db` + 会话密钥 `.secret_key`（**仅首次部署**导入 `data/`，更新时不会覆盖线上数据） |
+| `deploy.sh` | 服务器一键部署脚本（检查 Docker → 按需加载镜像 → 启动 → 打印访问地址） |
+| `DEPLOY.md` | 服务器部署说明（端口、环境变量、备份、更新回滚、常见问题） |
+| `.env.example` | 环境变量参考 |
+
+可选参数：
+
 ```bash
-cd scripts
-python3 run.py
+./package_for_docker.command --skip-build   # 不重新构建镜像，直接用本地现有镜像
+./package_for_docker.command --no-image     # 不打包镜像（服务器自行 build）
+./package_for_docker.command --no-data      # 不打包数据库快照（服务器空库开始）
 ```
 
-### 3. 访问
-打开浏览器访问: http://localhost:5000
+> ⚠️ 本机为 **arm64**（Apple Silicon），打包出的镜像也是 arm64；若服务器是 x86_64，
+> 请在服务器上用 `docker compose up -d --build` 自行构建（`deploy.sh` 会自动识别架构不一致并切换）。
 
 ## 目录结构
 
 ```
 station-camera-dri/
+├── start.command              # 本地启动（双击即可，端口 5001）
+├── restart.command            # 本地重启
+├── package_for_docker.command # 打包 Docker 部署包（生成 dist/forDocker.tar.gz）
 ├── scripts/
-│   ├── run.py           # 启动脚本
-│   ├── app.py           # Flask 主应用
-│   └── data_manager.py  # 数据管理模块
-├── templates/           # HTML 模板
-├── static/              # CSS 和 JS
-├── data/                # SQLite 数据库 / 密钥 / 备份
-├── requirements.txt     # Python 依赖
+│   ├── run.py                 # 本地启动脚本
+│   ├── app.py                 # Flask 主应用
+│   ├── data_manager.py        # 数据管理模块（SQLite）
+│   ├── backup.py / restore.py # 加密备份 / 恢复
+│   ├── restore_revision.py    # 从自动快照恢复被误删的表格列
+│   └── db_admin.py            # 后台数据库查看
+├── templates/                 # HTML 模板
+├── static/                    # CSS 和 JS
+├── data/                      # SQLite 数据库 / 会话密钥 / 备份
+├── Dockerfile                 # 服务器容器镜像（本地不跑，打包用）
+├── docker-compose.yml         # 服务器编排（端口 8080→8000）
+├── requirements.txt           # Python 依赖
 └── README.md
 ```
 
@@ -137,7 +203,13 @@ python3 db_admin.py export
 也可直接用系统自带的 `sqlite3 data/app.db` 或图形工具（如 DB Browser for SQLite）打开 `data/app.db`。
 改数据前建议先 `backup`。
 
-## Docker 部署
+## Docker 部署（服务器）
+
+> 部署流程：本地用 `start.command` 开发 → 双击 `package_for_docker.command` 打包 →
+> 上传 `dist/forDocker.tar.gz` 到服务器 → 解压后执行 `./deploy.sh`（详见包内 `DEPLOY.md`）。
+
+- 服务器要求：Linux + Docker（含 `docker compose` v2 插件）
+- 本机（Apple Silicon / arm64）打出的镜像是 arm64；x86_64 服务器会由 `deploy.sh` 自动改为在服务器构建
 
 提供容器化运行所需文件：`Dockerfile`、`docker-compose.yml`、`.dockerignore`、`requirements.txt`。
 
@@ -216,7 +288,7 @@ docker run -d --name dri --restart unless-stopped \
   python3 scripts/restore_revision.py --list          # 查看可用快照
   python3 scripts/restore_revision.py --restore <id>  # 恢复（会先确认；恢复前再存一份当前状态，可回滚）
   ```
-  （Docker：`docker compose exec dri python scripts/restore_revision.py --list`）
+  （本地运行：`./venv/bin/python scripts/restore_revision.py --list`）
 - **全新部署**（数据库无用户时）：可设置环境变量 `ADMIN_EMPLOYEE_ID`（及可选 `ADMIN_NAME`）
   自动创建一个初始管理员，避免被锁在系统外。
 
@@ -229,4 +301,4 @@ docker compose logs -f dri      # 查看实时日志
 docker compose down             # 停止并移除容器（数据卷 data/ 仍保留）
 ```
 
-> 容器内也内置了后台管理脚本：`docker compose exec dri python scripts/db_admin.py tables`。
+> 本地运行时用项目内 venv 执行后台管理脚本：`./venv/bin/python scripts/db_admin.py tables`。

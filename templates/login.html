@@ -13,7 +13,7 @@
                 </svg>
             </div>
             <h1 style="font-size: 1.5rem; font-weight: 600; color: #1d1d1f; margin-bottom: 0.5rem;">Station & Camera DRI</h1>
-            <p style="font-size: 0.875rem; color: #86868b;">请输入工号和姓名登录系统</p>
+            <p style="font-size: 0.875rem; color: #86868b;">请输入工号、姓名和密码登录系统</p>
         </div>
         
         <!-- 登录表单 -->
@@ -34,6 +34,14 @@
                        autocomplete="name">
             </div>
             
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #1d1d1f; margin-bottom: 0.5rem;">密码</label>
+                <input type="password" name="password" required 
+                       style="width: 100%; padding: 0.875rem 1rem; font-size: 1rem; border: 1px solid #d1d5db; border-radius: 10px; color: #1d1d1f; background: white; box-sizing: border-box; transition: all 0.2s;"
+                       placeholder="请输入密码" 
+                       autocomplete="current-password">
+            </div>
+            
             <button type="submit" style="width: 100%; padding: 1rem; background: #0071E3; color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">
                 登录
             </button>
@@ -52,11 +60,12 @@ document.getElementById('loginForm').onsubmit = function(e) {
     var form = e.target;
     var employeeId = form.employee_id.value.trim();
     var name = form.name.value.trim();
+    var password = form.password.value;
     
     fetch('/api/login', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({employee_id: employeeId, name: name})
+        body: JSON.stringify({employee_id: employeeId, name: name, password: password})
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -65,7 +74,7 @@ document.getElementById('loginForm').onsubmit = function(e) {
             window.location.href = '/';
         } else {
             var errorMsg = document.getElementById('errorMsg');
-            errorMsg.textContent = data.message || '登录失败，请检查工号和姓名';
+            errorMsg.textContent = data.message || '登录失败，请检查工号、姓名和密码';
             errorMsg.style.display = 'block';
         }
     })

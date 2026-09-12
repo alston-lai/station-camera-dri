@@ -175,6 +175,33 @@ body {
     height: 18px;
 }
 
+/* 修改密码按钮（用户名右侧） */
+.nav-change-pwd {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: none;
+    border: none;
+    color: #0071E3;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.nav-change-pwd:hover {
+    background: rgba(0, 113, 227, 0.1);
+}
+
+.nav-change-pwd svg {
+    width: 18px;
+    height: 18px;
+}
+
 /* Main Content */
 .main-content {
     max-width: 1200px;

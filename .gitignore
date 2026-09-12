@@ -28,3 +28,6 @@ data/users.json
 *.jpeg
 *.xlsx
 *.csv
+
+# Docker 部署包输出（forDocker 打包产物）
+dist/
